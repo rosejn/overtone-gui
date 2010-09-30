@@ -1,0 +1,12 @@
+# overtone-gui
+
+This is the GUI widget collection and visualization toolkit for project Overtone.
+
+## Usage
+
+Not yet stable enough for use, unless you want to read the source.
+
+## Installation
+
+lein deps
+lein repl
