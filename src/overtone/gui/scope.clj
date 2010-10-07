@@ -5,10 +5,7 @@
   (:import
     (java.awt Graphics Dimension Color BasicStroke)
     (java.awt.geom Rectangle2D$Float Path2D$Float)
-     (javax.swing JFrame JPanel)
-    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup SGTransform SGComponent
-                                 SGAbstractShape$Mode)
-     (com.sun.scenario.scenegraph.event SGMouseAdapter))
+    (javax.swing JFrame JPanel))
   (:use
      [overtone.core event sc synth ugen util time-utils]
     clojure.stacktrace)
@@ -214,7 +211,6 @@
 (require 'examples.basic)
 
 (defonce test-frame (JFrame. "scope"))
-(defonce test-panel (JSGPanel.))
 (defonce _test-scope (do
              (.setPreferredSize test-panel (Dimension. 600 400))
              (.add (.getContentPane test-frame) test-panel)
@@ -228,8 +224,8 @@
     (scope-buf b)
     (scope-on)
     (examples.basic/sizzle :bus 20)
-    (examples.basic/bus->buf 20 (:id b))
-    (examples.basic/bus->bus 20 0)))
+    (bus->buf 20 (:id b))
+    (bus->bus 20 0)))
 
 (defn- spectrogram [in-bus]
   (let [fft-buf (buffer 2048)
@@ -244,4 +240,4 @@
       (on :examples-ready go-go-scope))
     (go-go-scope))
   (.show test-frame))
-)
+  )

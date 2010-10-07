@@ -9,7 +9,8 @@
     (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup SGTransform SGComponent
                                  SGAbstractShape$Mode)
     (com.sun.scenario.scenegraph.fx FXShape FXText)
-    (com.sun.scenario.scenegraph.event SGMouseAdapter))
+    (com.sun.scenario.scenegraph.event SGMouseAdapter)
+    (javax.swing JFrame))
   (:use
     (overtone.core event envelope)
     (overtone.gui swing sg)
@@ -259,3 +260,16 @@
     (doseq [p points]
       (.add curve-group p))
     curve-group))
+
+(defn curve-panel []
+  (let [p (sg-panel 600 400)]
+    (set-scene! p (curve-editor)) 
+    p))
+
+(defn curve-frame []
+  (let [f (JFrame. "Curve Editor")]
+    (doto f
+      (.setPreferredSize (Dimension. 620 420))
+      (.add (curve-panel))
+      (.pack)
+      (.show))))

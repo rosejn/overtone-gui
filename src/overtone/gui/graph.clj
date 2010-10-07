@@ -8,12 +8,13 @@
      (com.sun.scenario.scenegraph.fx FXShape)
      (com.sun.scenario.animation Clip Interpolators)
      (com.sun.scenario.effect DropShadow))
-  (:use (overtone.core synth)))
+  (:use overtone.live
+        [vijual :only (tree-to-shapes layout-tree idtree image-dim)]))
 
 (def NODE-HEIGHT 20)
 (def NODE-ARC 4)
-(def NODE-PADDING 5)
-(def NODE-FONT-SIZE 14)
+(def NODE-PADDING 2)
+(def NODE-FONT-SIZE 12)
 (def NODE-BACKGROUND (Color. 50 50 50))
 (def NODE-STROKE (Color. 100 100 255))
 
@@ -122,6 +123,58 @@
 ;      (.add group n))
 ;    ;(dosync (ref-set sdef-group group))
     group))
+
+(defn label [text]
+  (let [args (repeat (count (:inputs ugen)) "arg ")
+        text (apply str text " " args)
+        lbl (SGText.)]
+    (doto lbl
+      (.setText text)
+      (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
+      (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
+      (.setFillPaint Color/WHITE))))
+
+(defn- draw-shapes-scene []
+  (let [tree [(prepare-tree-for-vijual (node-tree))]
+        shapes (tree-to-shapes image-dim (layout-tree image-dim (idtree tree)))
+        group (SGGroup.)]
+    (doseq [{:keys [type x y width height text]} shapes]
+      (when (= type :rect)
+        (let [x (+ x 100)
+              y (+ y 100)
+              box (FXShape.)
+              lbl (label (second text))
+              bounds (.getBounds lbl)]
+
+          (doto box
+            (.setShape (RoundRectangle2D$Float. x y width height NODE-ARC NODE-ARC))
+            (.setMode SGAbstractShape$Mode/STROKE_FILL)
+            (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
+            (.setFillPaint NODE-BACKGROUND)
+            (.setDrawPaint NODE-STROKE)
+            (.setDrawStroke (BasicStroke. 1.15)))
+          (.add group box)
+
+          (.setLocation lbl (Point. (+ x NODE-PADDING) (+ y NODE-PADDING (.height bounds))))
+          (.add group lbl)
+
+          )))
+    group))
+
+(defn node-tree-frame []
+  (let [g-frame (JFrame.  "Synth View")
+        g-panel (JSGPanel.)]
+    (.add (.getContentPane g-frame) g-panel)
+
+    (doto g-panel
+      (.setBackground Color/BLACK)
+      (.setScene (draw-shapes-scene))
+      (.setPreferredSize (Dimension. 1000 1000)))
+
+    (doto g-frame
+      (.add g-panel)
+      (.pack)
+      (.setVisible true))))
 
 (defn graph-window [sdef]
   (let [g-frame (JFrame.  "Project Overtone: Graph View")
