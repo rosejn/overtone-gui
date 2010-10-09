@@ -126,22 +126,43 @@
 ;; SGGroup
 
 (defn sg-group [] (SGGroup.))
-(defn add! [group node] (.add group node))
-(defn remove! [group node] (.remove group node))
 
+(defn add! 
+  "Add nodes to a scenegraph group."
+  [group & nodes] 
+  (doseq [node nodes]
+    (.add group node)))
 
-;; SGShape
+(defn remove! 
+  "Remove nodes from a scenegraph group."
+  [group & nodes] 
+  (doseq [node nodes]
+    (.remove group node)))
 
-(defn sg-shape [] (SGShape.))
-(defn set-shape! [node shape] (.setShape node shape))
+(defn sg-shape [] 
+  (SGShape.))
 
+(defn set-shape! 
+  [node shape] 
+  (.setShape node shape))
 
-;; SGTransform
+;; Transformations applied to a group affect all children
 
-(defn rotate [theta node] (SGTransform$Rotate/createRotation theta node))
-(defn zoom [sx sy node] (SGTransform$Scale/createScale sx sy node ))
-(defn shear [shx shy node] (SGTransform$Shear/createShear shx shy node ))
-(defn translate [tx ty node] (SGTransform$Translate/createTranslation tx ty node))
+(defn rotate 
+  [node theta] 
+  (SGTransform$Rotate/createRotation theta node))
+
+(defn zoom 
+  [node sx sy] 
+  (SGTransform$Scale/createScale sx sy node ))
+
+(defn shear 
+  [node shx shy] 
+  (SGTransform$Shear/createShear shx shy node ))
+
+(defn translate 
+  [node tx ty] 
+  (SGTransform$Translate/createTranslation tx ty node))
 
 ;; SGAbstractShape
 

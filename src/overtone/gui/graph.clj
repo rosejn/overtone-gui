@@ -1,7 +1,8 @@
 (ns overtone.gui.graph
   (:import
      (java.awt Dimension Color Font RenderingHints Point BasicStroke)
-     (java.awt.geom Ellipse2D$Float RoundRectangle2D$Float)
+     (java.awt.geom Ellipse2D$Float RoundRectangle2D$Float Rectangle2D$Float
+                    Arc2D$Float)
      (javax.swing JFrame JPanel)
      (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup SGAbstractShape$Mode)
      (com.sun.scenario.scenegraph.event SGMouseAdapter)
@@ -9,14 +10,22 @@
      (com.sun.scenario.animation Clip Interpolators)
      (com.sun.scenario.effect DropShadow))
   (:use overtone.live
-        [vijual :only (tree-to-shapes layout-tree idtree image-dim)]))
+        [vijual :only (tree-to-shapes layout-tree idtree image-dim)]
+        [clojure.contrib.string :only (trim)]
+        [clojure.walk :only (postwalk)]
+        overtone.gui.sg))
 
 (def NODE-HEIGHT 20)
 (def NODE-ARC 4)
-(def NODE-PADDING 2)
+(def NODE-PAD-X 0)
+(def NODE-PAD-Y 20)
 (def NODE-FONT-SIZE 12)
-(def NODE-BACKGROUND (Color. 50 50 50))
+
+(def BG-COLOR (Color. 50 50 50))
+(def NODE-BG (Color. 10 10 10))
 (def NODE-STROKE (Color. 100 100 255))
+(def EDGE-BG (Color. 100 100 255))
+(def TEXT-COLOR (Color. 200 200 200))
 
 (defn ugen-label [sdef ugen]
   (let [u-name (:name ugen)
@@ -46,7 +55,7 @@
         glow (DropShadow.)
         clip (Clip/create (long 2000) Clip/INDEFINITE glow "radius" (to-array [(float 1.0) (float 15.0)]))
         listener (ugen-mouse-listener glow clip)]
-    (.setLocation text (Point. (+ x NODE-PADDING) (+ y NODE-PADDING (.height bounds))))
+    (.setLocation text (Point. (+ x NODE-PAD-X) (+ y NODE-PAD-Y (.height bounds))))
 
     (doto glow
       (.setRadius 1.0)
@@ -54,12 +63,12 @@
 
     (doto box
       (.setShape (RoundRectangle2D$Float. x y
-                                          (+ (* 2 NODE-PADDING) (.width bounds))
-                                          (+ (* 2 NODE-PADDING) (.height bounds))
+                                          (+ (* 2 NODE-PAD-X) (.width bounds))
+                                          (+ (* 2 NODE-PAD-Y) (.height bounds))
                                           NODE-ARC NODE-ARC))
       (.setMode SGAbstractShape$Mode/STROKE_FILL)
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      (.setFillPaint NODE-BACKGROUND)
+      (.setFillPaint NODE-BG)
       (.setDrawPaint NODE-STROKE)
       (.setDrawStroke (BasicStroke. 1.15)))
 
@@ -124,6 +133,7 @@
 ;    ;(dosync (ref-set sdef-group group))
     group))
 
+
 (defn label [text]
   (let [args (repeat (count (:inputs ugen)) "arg ")
         text (apply str text " " args)
@@ -132,34 +142,81 @@
       (.setText text)
       (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
       (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
-      (.setFillPaint Color/WHITE))))
+      (.setFillPaint TEXT-COLOR))))
+
+(def BUTTON-WIDTH 20)
+(def BUTTON-HEIGHT 18)
+(def BUTTON-STROKE (Color. 255 50 50))
+(def BUTTON-FILL   (Color. 255 50 50))
+
+(defn node-shape 
+  [{:keys [type x y width height text] :as shape}]
+  (let [group (SGGroup.)
+        box (FXShape.)
+        button (FXShape.)
+        btn-x (- (/ width 2) (/ BUTTON-WIDTH 2))
+        btn-y (- height (/ BUTTON-HEIGHT 2))
+        lbl (label (second text))
+        bounds (.getBounds lbl)]
+    (doto box
+      (.setShape (RoundRectangle2D$Float. 0 0 width height NODE-ARC NODE-ARC))
+      (set-mode! :stroke-fill)
+      (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
+      (.setFillPaint NODE-BG)
+      (.setDrawPaint NODE-STROKE)
+      (.setDrawStroke (BasicStroke. 1.15)))
+    (doto button
+      (.setShape (Arc2D$Float. btn-x btn-y BUTTON-WIDTH BUTTON-HEIGHT
+                               180 180 Arc2D$Float/CHORD))
+      (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
+      ;(set-mode! :stroke)
+      (.setDrawPaint BUTTON-STROKE)
+      (.setDrawStroke (BasicStroke. 2.0))
+      (set-mode! :fill)
+      (.setFillPaint BUTTON-FILL)
+      )
+
+    (set-location! lbl NODE-PAD-X NODE-PAD-Y)
+    
+    (add! group box lbl button)
+    (translate group x y)))
+
+(defn edge-shape
+  [{:keys [type x y width height text] :as shape}]
+  (let [box (FXShape.)]
+    (doto box
+      (.setShape (Rectangle2D$Float. 0 0 width height))
+      (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
+      (set-mode! :fill)
+      (.setFillPaint EDGE-BG))
+    (translate box x y)))
+
+(def dimensions 
+  (merge image-dim
+         {:line-wid 1
+          :node-padding 15
+          :line-padding 15}))
 
 (defn- draw-shapes-scene []
-  (let [tree [(prepare-tree-for-vijual (node-tree))]
-        shapes (tree-to-shapes image-dim (layout-tree image-dim (idtree tree)))
-        group (SGGroup.)]
-    (doseq [{:keys [type x y width height text]} shapes]
-      (when (= type :rect)
-        (let [x (+ x 100)
-              y (+ y 100)
-              box (FXShape.)
-              lbl (label (second text))
-              bounds (.getBounds lbl)]
+  (let [aliased-tree (postwalk group-alias (vijual-tree (node-tree)))
+        tree [aliased-tree]
+        shapes (tree-to-shapes dimensions (layout-tree dimensions (idtree tree)))
+        scene (SGGroup.)
+        grouped-shapes (group-by 
+                         (fn [{:keys [type text]}]
+                           (if (= type :rect)
+                            (cond
+                              (nil? text) :edge
+                              :else :node)
+                            nil))
+                         shapes)]
+    (doseq [{:keys [type text] :as edge} (:edge grouped-shapes)]
+      (add! scene (edge-shape edge)))
 
-          (doto box
-            (.setShape (RoundRectangle2D$Float. x y width height NODE-ARC NODE-ARC))
-            (.setMode SGAbstractShape$Mode/STROKE_FILL)
-            (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-            (.setFillPaint NODE-BACKGROUND)
-            (.setDrawPaint NODE-STROKE)
-            (.setDrawStroke (BasicStroke. 1.15)))
-          (.add group box)
+    (doseq [{:keys [type text] :as node} (:node grouped-shapes)]
+      (add! scene (node-shape node)))
 
-          (.setLocation lbl (Point. (+ x NODE-PADDING) (+ y NODE-PADDING (.height bounds))))
-          (.add group lbl)
-
-          )))
-    group))
+    (translate scene 100 100)))
 
 (defn node-tree-frame []
   (let [g-frame (JFrame.  "Synth View")
@@ -167,14 +224,18 @@
     (.add (.getContentPane g-frame) g-panel)
 
     (doto g-panel
-      (.setBackground Color/BLACK)
+      (.setBackground BG-COLOR)
       (.setScene (draw-shapes-scene))
-      (.setPreferredSize (Dimension. 1000 1000)))
+      (.setPreferredSize (Dimension. 500 500)))
 
     (doto g-frame
       (.add g-panel)
       (.pack)
       (.setVisible true))))
+
+(definst foo 
+  [freq 440] 
+  (* 0.01 (saw [freq (* 0.99 freq)])))
 
 (defn graph-window [sdef]
   (let [g-frame (JFrame.  "Project Overtone: Graph View")
