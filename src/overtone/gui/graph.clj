@@ -172,11 +172,9 @@
 
     (set-location! lbl NODE-PAD-X NODE-PAD-Y)
     (add! group box lbl)
-    
-    (println "text: -" text "-")
 
     (if (.startsWith text "ids:")
-      (let [button (synth-kill-button (map #(Integer/parseInt %) 
+      (let [button (synth-kill-button (map #(Integer/parseInt %)
                                           (re-seq #"[0-9]+" text)))
             btn-x (- (/ width 2) (/ BUTTON-WIDTH 2))
             btn-y (- height (/ BUTTON-HEIGHT 2))]
