@@ -12,20 +12,13 @@
   (:use overtone.live
         [vijual :only (tree-to-shapes layout-tree idtree image-dim)]
         [clojure.contrib.string :only (trim)]
-        [clojure.walk :only (postwalk)]
-        overtone.gui.sg))
+        [overtone.gui sg color]))
 
 (def NODE-HEIGHT 20)
 (def NODE-ARC 4)
-(def NODE-PAD-X 0)
+(def NODE-PAD-X 10)
 (def NODE-PAD-Y 20)
 (def NODE-FONT-SIZE 12)
-
-(def BG-COLOR (Color. 50 50 50))
-(def NODE-BG (Color. 10 10 10))
-(def NODE-STROKE (Color. 100 100 255))
-(def EDGE-BG (Color. 100 100 255))
-(def TEXT-COLOR (Color. 200 200 200))
 
 (defn ugen-label [sdef ugen]
   (let [u-name (:name ugen)
@@ -36,7 +29,7 @@
       (.setText text)
       (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
       (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
-      (.setFillPaint Color/WHITE))))
+      (.setFillPaint (color :text)))))
 
 (defn ugen-mouse-listener [glow anim]
   (proxy [SGMouseAdapter] []
@@ -68,8 +61,8 @@
                                           NODE-ARC NODE-ARC))
       (.setMode SGAbstractShape$Mode/STROKE_FILL)
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      (.setFillPaint NODE-BG)
-      (.setDrawPaint NODE-STROKE)
+      (.setFillPaint (color :fill-1))
+      (.setDrawPaint (color :stroke-1))
       (.setDrawStroke (BasicStroke. 1.15)))
 
     (.setEffect box glow)
@@ -142,43 +135,53 @@
       (.setText text)
       (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
       (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
-      (.setFillPaint TEXT-COLOR))))
+      (.setFillPaint (color :text)))))
 
 (def BUTTON-WIDTH 20)
 (def BUTTON-HEIGHT 18)
-(def BUTTON-STROKE (Color. 255 50 50))
-(def BUTTON-FILL   (Color. 255 50 50))
 
-(defn node-shape 
+(defn- synth-kill-button [ids]
+  (let [button (FXShape.)]
+    (doto button
+      (.setShape (Arc2D$Float. 0 0 BUTTON-WIDTH BUTTON-HEIGHT
+                               180 180 Arc2D$Float/CHORD))
+      (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
+      ;(set-mode! :stroke)
+      (.setDrawPaint (color :button-stroke))
+      (.setDrawStroke (BasicStroke. 2.0))
+      (set-mode! :fill)
+      (.setFillPaint (color :button-fill)))
+
+    (on-mouse-clicked button #(apply kill ids))
+    button))
+
+(defn node-shape
   [{:keys [type x y width height text] :as shape}]
-  (let [group (SGGroup.)
+  (let [text (trim (second text))
+        group (SGGroup.)
         box (FXShape.)
-        button (FXShape.)
-        btn-x (- (/ width 2) (/ BUTTON-WIDTH 2))
-        btn-y (- height (/ BUTTON-HEIGHT 2))
-        lbl (label (second text))
+        lbl (label text)
         bounds (.getBounds lbl)]
     (doto box
       (.setShape (RoundRectangle2D$Float. 0 0 width height NODE-ARC NODE-ARC))
       (set-mode! :stroke-fill)
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      (.setFillPaint NODE-BG)
-      (.setDrawPaint NODE-STROKE)
+      (.setFillPaint (color :node-bg))
+      (.setDrawPaint (color :stroke-1))
       (.setDrawStroke (BasicStroke. 1.15)))
-    (doto button
-      (.setShape (Arc2D$Float. btn-x btn-y BUTTON-WIDTH BUTTON-HEIGHT
-                               180 180 Arc2D$Float/CHORD))
-      (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      ;(set-mode! :stroke)
-      (.setDrawPaint BUTTON-STROKE)
-      (.setDrawStroke (BasicStroke. 2.0))
-      (set-mode! :fill)
-      (.setFillPaint BUTTON-FILL)
-      )
 
     (set-location! lbl NODE-PAD-X NODE-PAD-Y)
+    (add! group box lbl)
     
-    (add! group box lbl button)
+    (println "text: -" text "-")
+
+    (if (.startsWith text "ids:")
+      (let [button (synth-kill-button (map #(Integer/parseInt %) 
+                                          (re-seq #"[0-9]+" text)))
+            btn-x (- (/ width 2) (/ BUTTON-WIDTH 2))
+            btn-y (- height (/ BUTTON-HEIGHT 2))]
+      (add! group (translate button btn-x btn-y))))
+
     (translate group x y)))
 
 (defn edge-shape
@@ -188,21 +191,20 @@
       (.setShape (Rectangle2D$Float. 0 0 width height))
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
       (set-mode! :fill)
-      (.setFillPaint EDGE-BG))
+      (.setFillPaint (color :highlight)))
     (translate box x y)))
 
-(def dimensions 
+(def dimensions
   (merge image-dim
          {:line-wid 1
           :node-padding 15
           :line-padding 15}))
 
 (defn- draw-shapes-scene []
-  (let [aliased-tree (postwalk group-alias (vijual-tree (node-tree)))
-        tree [aliased-tree]
+  (let [tree [(vijual-tree (node-tree))]
         shapes (tree-to-shapes dimensions (layout-tree dimensions (idtree tree)))
         scene (SGGroup.)
-        grouped-shapes (group-by 
+        grouped-shapes (group-by
                          (fn [{:keys [type text]}]
                            (if (= type :rect)
                             (cond
@@ -219,22 +221,26 @@
     (translate scene 100 100)))
 
 (defn node-tree-frame []
-  (let [g-frame (JFrame.  "Synth View")
-        g-panel (JSGPanel.)]
+  (let [g-frame (JFrame.  "Synth Tree")
+        g-panel (JSGPanel.)
+        update-scene (fn [& _] (.setScene g-panel (draw-shapes-scene)))]
     (.add (.getContentPane g-frame) g-panel)
 
     (doto g-panel
-      (.setBackground BG-COLOR)
+      (.setBackground (color :background))
       (.setScene (draw-shapes-scene))
       (.setPreferredSize (Dimension. 500 500)))
+
+    (on-event "/n_go" :node-tree-create update-scene)
+    (on-event "/n_end" :node-tree-destroy update-scene)
 
     (doto g-frame
       (.add g-panel)
       (.pack)
       (.setVisible true))))
 
-(definst foo 
-  [freq 440] 
+(definst foo
+  [freq 440]
   (* 0.01 (saw [freq (* 0.99 freq)])))
 
 (defn graph-window [sdef]
@@ -243,7 +249,7 @@
     (.add (.getContentPane g-frame) g-panel)
 
     (doto g-panel
-      (.setBackground Color/BLACK)
+      (.setBackground (color :background))
       (.setScene (sdef-view sdef))
       (.setPreferredSize (Dimension. 1000 1000)))
 

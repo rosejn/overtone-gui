@@ -16,13 +16,13 @@
     (overtone.gui swing sg)
     clojure.stacktrace
     [clojure.contrib.seq-utils :only (indexed)]) ;;TODO replace this with clojure.core/keep-indexed or map-indexed
-  (:require [overtone.core.log :as log]))
+  (:require [overtone.core.log :as log]
+            [overtone.gui.color :as color]))
 
 (defonce curve* (ref {:curve (adsr)
                       :line nil
                       :color (Color. 0 130 226)
                       :fill-alpha 120
-                      :background (Color. 50 50 50)
                       :width 600
                       :height 400
                       :padding-x 20
@@ -139,7 +139,7 @@
   (let [group (sg-group)
         shape (sg-shape)
         label (FXText.)
-        trans (translate x y group)
+        trans (translate group x y)
         r2 (/ radius 2)
         circle (Arc2D$Float. (- 0 r2) (- 0 r2) radius radius 0 360 Arc2D/CHORD)
         [cx cy] (canvas-to-curve x y)
@@ -203,8 +203,8 @@
       (.setShape line-path)
       (set-antialias! :on)
       (set-mode! :stroke-fill)
-      (set-draw-paint! 0 130 226)
-      (set-fill-paint! 0 130 226 120))
+      (set-draw-paint! color/SHAPE-STROKE-1)
+      (set-fill-paint! color/SHAPE-FILL-1))
 
     (dosync (alter curve* assoc :points points))
     (dosync (alter curve* assoc :line line))
@@ -227,13 +227,13 @@
     (doto background
       (set-mode! :stroke-fill)
       (set-draw-paint! 100 100 100)
-      (set-fill-paint! 40 40 40)
+      (set-fill-paint! color/BACKGROUND)
       (set-shape! (Rectangle2D$Float. 0.0 0.0 (:width @curve*) (:height @curve*))))
     (.add curve-group background)
 
     ; grid
     (set-mode! grid :stroke)
-    (set-draw-paint! grid 80 80 80)
+    (set-draw-paint! grid color/GRID-LINES)
 
     (let [[start-x start-y] (curve-to-canvas 0.0 0.0 0 0)]
       (.moveTo grid-path start-x start-y))
@@ -253,9 +253,6 @@
 
     (.add curve-group grid)
     (.add curve-group path)
-    ;(doto curve-group
-    ;  (.add grid)
-    ;  (.add path))
 
     (doseq [p points]
       (.add curve-group p))
@@ -263,7 +260,7 @@
 
 (defn curve-panel []
   (let [p (sg-panel 600 400)]
-    (set-scene! p (curve-editor)) 
+    (set-scene! p (curve-editor))
     p))
 
 (defn curve-frame []
