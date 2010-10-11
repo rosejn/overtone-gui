@@ -12,11 +12,12 @@
     (com.sun.scenario.scenegraph.event SGMouseAdapter)
     (javax.swing JFrame))
   (:use
-    (overtone.core event envelope)
-    (overtone.gui swing sg)
+    [overtone event]
+    [overtone.sc envelope]
+    [overtone.gui swing sg]
     clojure.stacktrace
     [clojure.contrib.seq-utils :only (indexed)]) ;;TODO replace this with clojure.core/keep-indexed or map-indexed
-  (:require [overtone.core.log :as log]
+  (:require [overtone.log :as log]
             [overtone.gui.color :as color]))
 
 (defonce curve* (ref {:curve (adsr)

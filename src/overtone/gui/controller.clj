@@ -4,7 +4,8 @@
      (javax.swing JFrame JPanel JLabel JSlider JScrollPane SwingUtilities BoxLayout)
      (javax.swing.event ChangeListener))
   (:use
-     (overtone.core sc synth synthdef util time-utils)
+     [overtone util time-utils]
+     [overtone.sc core synth synthdef]
      clojure.contrib.swing-utils))
 
 (defn determine-range [val]

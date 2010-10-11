@@ -14,7 +14,8 @@
    (javax.swing.text TextAction JTextComponent))
   (:require [clojure.main :as r])
   (:use [clojure.stacktrace :only (e)]
-        (overtone.core time-utils sc ugen synth synthdef envelope event)
+        [overtone time-utils event]
+        [overtone.sc core ugen synth synthdef envelope]
         (overtone.gui swing sg)
         (overtone.music rhythm pitch tuning)))
 

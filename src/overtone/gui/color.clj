@@ -7,10 +7,10 @@
                  BoxLayout JTextArea JScrollPane JTable)
     (javax.swing.event ChangeListener)
     (javax.swing.table AbstractTableModel))
-  (:use (overtone.core event log)
+  (:use (overtone event log)
         (overtone.gui swing)))
 
-(def color* (ref 
+(def color* (ref
               {:fill-1 (Color. 0 130 226 120)
                :stroke-1 (Color. 0 130 226)
                :background (Color. 40 40 40)

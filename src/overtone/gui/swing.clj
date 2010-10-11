@@ -10,8 +10,8 @@
                         JButton SwingUtilities BorderFactory
                         ImageIcon KeyStroke JOptionPane))
   (:use clojure.stacktrace
-        (clojure.contrib swing-utils)
-        (overtone.core util)))
+        [clojure.contrib swing-utils]
+        [overtone util]))
 
 (defmacro in-swing [& body]
   `(SwingUtilities/invokeLater (fn [] ~@body)))

@@ -7,9 +7,10 @@
     (java.awt.geom Rectangle2D$Float Path2D$Float)
     (javax.swing JFrame JPanel))
   (:use
-     [overtone.core event sc synth ugen util time-utils]
+     [overtone event util time-utils]
+     [overtone.sc core synth ugen]
     clojure.stacktrace)
-  (:require [overtone.core.log :as log]
+  (:require [overtone.log :as log]
             [clojure.set :as set]))
 
 (defonce scope* (ref {:buf false

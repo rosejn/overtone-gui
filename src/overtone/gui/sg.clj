@@ -2,8 +2,8 @@
   ^{:doc "Scenegraph syntactic sugar"
      :author "Fabian Aussems"}
   (:gen-class)
-  (:require (clojure.contrib [str-utils2 :as s2]))
-  (:use (overtone.core util event))
+  (:require [clojure.contrib.str-utils2 :as s2])
+  (:use [overtone util event])
   (:import
    (com.sun.scenario.scenegraph
      JSGPanel ProportionalPaint SGAbstractGeometry SGAbstractShape
@@ -127,41 +127,41 @@
 
 (defn sg-group [] (SGGroup.))
 
-(defn add! 
+(defn add!
   "Add nodes to a scenegraph group."
-  [group & nodes] 
+  [group & nodes]
   (doseq [node nodes]
     (.add group node)))
 
-(defn remove! 
+(defn remove!
   "Remove nodes from a scenegraph group."
-  [group & nodes] 
+  [group & nodes]
   (doseq [node nodes]
     (.remove group node)))
 
-(defn sg-shape [] 
+(defn sg-shape []
   (SGShape.))
 
-(defn set-shape! 
-  [node shape] 
+(defn set-shape!
+  [node shape]
   (.setShape node shape))
 
 ;; Transformations applied to a group affect all children
 
-(defn rotate 
-  [node theta] 
+(defn rotate
+  [node theta]
   (SGTransform$Rotate/createRotation theta node))
 
-(defn zoom 
-  [node sx sy] 
+(defn zoom
+  [node sx sy]
   (SGTransform$Scale/createScale sx sy node ))
 
-(defn shear 
-  [node shx shy] 
+(defn shear
+  [node shx shy]
   (SGTransform$Shear/createShear shx shy node ))
 
-(defn translate 
-  [node tx ty] 
+(defn translate
+  [node tx ty]
   (SGTransform$Translate/createTranslation tx ty node))
 
 ;; SGAbstractShape
