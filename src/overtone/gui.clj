@@ -1,4 +1,6 @@
 (ns overtone.gui
+   (:require 
+     [overtone.gui curve scope meter controller graph])
   (:use overtone.ns))
 
 (immigrate
