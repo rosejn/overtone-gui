@@ -1,5 +1,5 @@
 (ns overtone.gui
-  (:use overtone.util))
+  (:use overtone.ns))
 
 (immigrate
   'overtone.gui.curve

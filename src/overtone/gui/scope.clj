@@ -13,6 +13,8 @@
   (:require [overtone.log :as log]
             [clojure.set :as set]))
 
+(def SCOPE-BUF-SIZE 4096)
+
 (defonce scope* (ref {:buf false
                       :buf-size 0
                       :bus 0
@@ -153,7 +155,7 @@
   "Set a bus to view in the scope."
   [bus]
   (clean-scope)
-  (let [buf (or @scope-bus-buf* (buffer 2048))
+  (let [buf (or @scope-bus-buf* (buffer SCOPE-BUF-SIZE))
         _ (println "buf: " buf)
         _ (wait-for-buffer buf)
         bus-synth (bus->buf :target 0 :position :tail bus buf)]

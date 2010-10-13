@@ -14,7 +14,7 @@
   (:use
     [overtone event]
     [overtone.sc envelope]
-    [overtone.gui swing sg]
+    [overtone.gui swing sg color]
     clojure.stacktrace
     [clojure.contrib.seq-utils :only (indexed)]) ;;TODO replace this with clojure.core/keep-indexed or map-indexed
   (:require [overtone.log :as log]
@@ -204,8 +204,8 @@
       (.setShape line-path)
       (set-antialias! :on)
       (set-mode! :stroke-fill)
-      (set-draw-paint! color/SHAPE-STROKE-1)
-      (set-fill-paint! color/SHAPE-FILL-1))
+      (set-draw-paint! (color :stroke-1))
+      (set-fill-paint! (color :fill-1)))
 
     (dosync (alter curve* assoc :points points))
     (dosync (alter curve* assoc :line line))
@@ -228,13 +228,13 @@
     (doto background
       (set-mode! :stroke-fill)
       (set-draw-paint! 100 100 100)
-      (set-fill-paint! color/BACKGROUND)
+      (set-fill-paint! (color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 (:width @curve*) (:height @curve*))))
     (.add curve-group background)
 
     ; grid
     (set-mode! grid :stroke)
-    (set-draw-paint! grid color/GRID-LINES)
+    (set-draw-paint! grid (color :grid-lines))
 
     (let [[start-x start-y] (curve-to-canvas 0.0 0.0 0 0)]
       (.moveTo grid-path start-x start-y))
