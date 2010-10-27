@@ -198,7 +198,7 @@
                 :white      Color/WHITE
                 :yellow     Color/YELLOW})
 
-(defn set-draw-paint!
+(defn set-stroke-paint!
   ([node color] 
    (if (= java.awt.Color (type color))
      (.setDrawPaint node color)

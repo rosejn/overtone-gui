@@ -13,8 +13,7 @@
   (:use
     clojure.stacktrace
     [overtone event]
-    [overtone.gui swing sg color])
-  (:require [overtone.log :as log]))
+    [overtone.gui swing sg color]))
 
 (def WIDTH 20)
 (def HEIGHT 120)
@@ -36,7 +35,7 @@
          last-y (atom 0)]
      (doto box
        (set-mode! :stroke)
-       (set-draw-paint! (color :stroke-1))
+       (set-stroke-paint! (color :stroke-1))
        (set-shape! (RoundRectangle2D$Float. 0 0 WIDTH HEIGHT
                                             CORNER-WIDTH 
                                             CORNER-HEIGHT)))
@@ -103,9 +102,7 @@
       (set-shape! (Rectangle2D$Float. 0.0 0.0 400 400)))
     (.add group background)
     (dotimes [i 10]
-      (.add group (SGTransform/createTranslation (+ 50 (* i 30))
-                                                 50 
-                                                 (:group (fader)))))
+      (.add group (translate (+ 50 (* i 30)) 50 (:group (fader)))))
     (set-scene! p group)
     p))
 

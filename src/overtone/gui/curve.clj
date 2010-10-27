@@ -116,7 +116,7 @@
                 (:fill-alpha @curve*)]
                args)
         line (:line @curve*)]
-    (apply set-draw-paint! line args)
+    (apply set-stroke-paint! line args)
     (apply set-fill-paint! line args)))
 
 (def current-pos* (ref nil))
@@ -154,7 +154,7 @@
     (doto shape ; circle
       (set-mode! :stroke-fill)
       (set-shape! circle)
-      (set-draw-paint! :white)
+      (set-stroke-paint! :white)
       (set-fill-paint! 255 255 255 50)
       (set-antialias! :on))
 
@@ -205,7 +205,7 @@
       (.setShape line-path)
       (set-antialias! :on)
       (set-mode! :stroke-fill)
-      (set-draw-paint! (color :stroke-1))
+      (set-stroke-paint! (color :stroke-1))
       (set-fill-paint! (color :fill-1)))
 
     (dosync (alter curve* assoc :points points))
@@ -228,14 +228,14 @@
     ; background box
     (doto background
       (set-mode! :stroke-fill)
-      (set-draw-paint! 100 100 100)
+      (set-stroke-paint! 100 100 100)
       (set-fill-paint! (color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 (:width @curve*) (:height @curve*))))
     (.add curve-group background)
 
     ; grid
     (set-mode! grid :stroke)
-    (set-draw-paint! grid (color :grid-lines))
+    (set-stroke-paint! grid (color :grid-lines))
 
     (let [[start-x start-y] (curve-to-canvas 0.0 0.0 0 0)]
       (.moveTo grid-path start-x start-y))
