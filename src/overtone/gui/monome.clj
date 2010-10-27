@@ -32,8 +32,7 @@
                           (handler x y (swap! status not)))
                         (if @status
                           (set-fill-paint! back (color :fill-1))
-                          (set-fill-paint! back (color :background)))
-                        (println "toggle: " @status))]
+                          (set-fill-paint! back (color :background))))]
     (doto back
       (set-mode! :fill)
       (set-fill-paint! (color :background))
@@ -65,7 +64,7 @@
                           (m-button i j handler)))]
      (doto border
        (set-mode! :stroke)
-       (set-draw-paint! (color :stroke-1))
+       (set-stroke-paint! (color :stroke-1))
        (set-shape! (RoundRectangle2D$Float. 0 0 width height 
                                             CORNER CORNER)))
      (.add group border)
