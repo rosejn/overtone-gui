@@ -152,7 +152,7 @@
   [node theta]
   (SGTransform$Rotate/createRotation theta node))
 
-(defn zoom
+(defn scale
   [node sx sy]
   (SGTransform$Scale/createScale sx sy node ))
 
@@ -199,12 +199,18 @@
                 :yellow     Color/YELLOW})
 
 (defn set-draw-paint!
-  ([node color] (.setDrawPaint node (color-map color)))
+  ([node color] 
+   (if (= java.awt.Color (type color))
+     (.setDrawPaint node color)
+     (.setDrawPaint node (color-map color))))
   ([node r g b] (.setDrawPaint node (Color. r g b)))
   ([node r g b a] (.setDrawPaint node (Color. r g b a))))
 
 (defn set-fill-paint!
-  ([node color] (.setFillPaint node (color-map color)))
+  ([node color]
+   (cond 
+     (= java.awt.Color (type color)) (.setFillPaint node color) 
+     (keyword? color) (.setFillPaint node (color-map color))))
   ([node r g b] (.setFillPaint node (Color. r g b)))
   ([node r g b a] (.setFillPaint node (Color. r g b a))))
 

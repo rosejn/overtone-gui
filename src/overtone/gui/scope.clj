@@ -53,16 +53,21 @@
 
 (defsynth freq-scope-zero [in-bus 0 fft-buf 0 scope-buf 1
                            rate 4 phase 1 db-factor 0.02]
-  (let [n-samples (* 0.5 (- (buf-samples fft-buf) 2))
+  (let [n-samples (* 0.5 (- (buf-samples:kr fft-buf) 2))
         signal (in in-bus)
-        freqs (fft fft-buf signal 0.75 :hann)
-        chain  (pv-mag-smear fft-buf 1)
+        freqs  (fft fft-buf signal 0.75 :hann)
+;        chain  (pv-mag-smear fft-buf 1)
         phasor (+ (+ n-samples 2)
                   (* n-samples
-                     (lf-saw (/ rate (buf-dur fft-buf)) phase)))
+                     (lf-saw (/ rate (buf-dur:kr fft-buf)) phase)))
         phasor (round phasor 2)]
     (scope-out (* db-factor (ampdb (* 0.00285 (buf-rd 1 fft-buf phasor 1 1))))
                scope-buf)))
+
+(defsynth freqs [in-bus 10 fft-buf 0]
+  (let [n-samples (* 0.5 (- (buf-samples:kr fft-buf) 2))
+        signal    (in in-bus 1)]
+    (fft fft-buf signal 0.75 :hann)))
 
 ;	// logarithmic
 ;	SynthDef("freqScope1", { arg in=0, fftbufnum=0, scopebufnum=1, rate=4, phase=1, dbFactor = 0.02;
@@ -110,6 +115,23 @@
                        (aget ^floats frames (unchecked-multiply x step))))))))
   (.repaint (:panel @scope*)))
 
+; Note: The fft ugen writes into a buffer:
+; dc, nyquist, real, imaginary, real, imaginary....
+(defn- update-scope []
+  (let [{:keys [buf width height panel]} @scope*
+        frames  (buffer-data buf)
+        n-reals (/ (- (:size buf) 2) 2)
+        step    (int (/ n-reals width))
+        y-scale (/ (- height (* 2 Y-PADDING)) 2)
+        y-shift (+ (/ height 2) Y-PADDING)]
+    (dotimes [x width]
+      (aset ^ints y-array x
+            (int (+ y-shift
+                    (* y-scale
+                       (aget ^floats frames 
+                             (+ 2 (* 2 (unchecked-multiply x step))))))))))
+  (.repaint (:panel @scope*)))
+
 (defn- paint-scope [g]
   (let [{:keys [background width height color]} @scope*]
     (.setColor ^Graphics g ^Color background)
@@ -126,7 +148,7 @@
       (buffer-free (:buf @scope*)))
     (if-let [s (:bus-synth @scope*)]
       (kill s))
-    (alter scope* assoc :buf nil :buf-size 0 :tmp-buf false
+    (alter scope* assoc :buf nil :tmp-buf false
            :bus nil :bus-synth nil))
   (dotimes [i (:width @scope*)]
     (aset y-array i (/ (:height @scope*) 2)))
@@ -138,7 +160,7 @@
   (clean-scope)
   (dosync (alter scope* assoc
                  :buf buf
-                 :buf-size (count (buffer-data buf))))
+                 :buf-size (:size (buffer-info buf))))
   (update-scope))
 
 (defn- wait-for-buffer [b]
@@ -149,24 +171,25 @@
                                 (java.lang.Thread/sleep 50)
                                 (recur (inc i))))))
 
-(def scope-bus-buf* (ref nil))
+(def SCOPE-BUF-SIZE 4096)
+
+(defn- get-scope-buf []
+  (if-let [b (:buf @scope*)]
+    b
+    (let [buf (buffer SCOPE-BUF-SIZE)]
+      (dosync (alter scope* assoc :buf buf
+                     :buf-size SCOPE-BUF-SIZE))
+      buf)))
 
 (defn scope-bus
   "Set a bus to view in the scope."
   [bus]
   (clean-scope)
-  (let [buf (or @scope-bus-buf* (buffer SCOPE-BUF-SIZE))
-        _ (println "buf: " buf)
+  (let [buf (get-scope-buf)
         _ (wait-for-buffer buf)
         bus-synth (bus->buf :target 0 :position :tail bus buf)]
-    (println "bus-synth: " bus-synth)
-    (if (not @scope-bus-buf*)
-      (dosync (ref-set scope-bus-buf* buf)))
-    (println "scope-bus-buf: " @scope-bus-buf*)
     (dosync
       (alter scope* assoc
-                   :buf buf
-                   :buf-size 2048
                    :bus bus
                    :tmp-buf true
                    :bus-synth bus-synth))
@@ -193,18 +216,21 @@
       (.setPreferredSize (Dimension. 600 400))
       (.add (scope-panel))
       (.pack)
-      (.show))))
+      (.show)))
+  :scope)
 
 (defn scope-on []
   (dosync (alter scope* assoc
                  :status :on
-                 :runner (periodic update-scope (/ 1000 (:fps @scope*))))))
+                 :runner (periodic update-scope (/ 1000 (:fps @scope*)))))
+  :on)
 
 (defn scope-off []
   (.cancel (:runner @scope*) true)
   (dosync (alter scope* assoc
                  :status :off
-                 :runner nil)))
+                 :runner nil))
+  :off)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing

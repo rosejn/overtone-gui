@@ -11,8 +11,8 @@
         (overtone.gui swing)))
 
 (def color* (ref
-              {:fill-1 (Color. 0 130 226 120)
-               :stroke-1 (Color. 0 130 226)
+              {:fill-1 (Color. 0 130 226 100)
+               :stroke-1 (Color. 0 140 236)
                :background (Color. 40 40 40)
                :grid-lines (Color. 80 80 80)
                :current-color (Color. 0 130 226)

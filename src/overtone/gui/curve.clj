@@ -6,7 +6,8 @@
     (java.awt Graphics Dimension Color BasicStroke Font)
     (java.awt.font TextAttribute)
     (java.awt.geom Rectangle2D$Float Path2D$Float Arc2D$Float Arc2D)
-    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup SGTransform SGComponent
+    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup 
+                                 SGTransform SGComponent 
                                  SGAbstractShape$Mode)
     (com.sun.scenario.scenegraph.fx FXShape FXText)
     (com.sun.scenario.scenegraph.event SGMouseAdapter)
