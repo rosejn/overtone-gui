@@ -1,10 +1,10 @@
 (ns
   ^{:doc "A fader control"
-    :author "Jeff Rose"} 
+    :author "Jeff Rose"}
   overtone.gui.fader
   (:import
     (java.awt Dimension Color)
-    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup 
+    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup
                                  SGTransform SGComponent SGAbstractShape$Mode)
     (com.sun.scenario.scenegraph.fx FXShape FXText)
     (com.sun.scenario.scenegraph.event SGMouseAdapter)
@@ -20,7 +20,7 @@
 (def CORNER-WIDTH 5)
 (def CORNER-HEIGHT 5)
 
-(defn fader 
+(defn fader
   ([] (fader false))
   ([handler]
    (let [group (sg-group)
@@ -34,21 +34,24 @@
          value (atom 0.8)
          last-y (atom 0)]
      (doto box
+       (set-antialias! :on)
        (set-mode! :stroke)
        (set-stroke-paint! (color :stroke-1))
        (set-shape! (RoundRectangle2D$Float. 0 0 WIDTH HEIGHT
-                                            CORNER-WIDTH 
+                                            CORNER-WIDTH
                                             CORNER-HEIGHT)))
 
      (doto slide
+       (set-antialias! :on)
        (set-mode! :fill)
        (set-fill-paint! (color :fill-1))
-       (set-shape! (RoundRectangle2D$Float. 1 0 
+       (set-shape! (RoundRectangle2D$Float. 1 0
                                             (- WIDTH 2)
                                             HEIGHT
-                                            CORNER-WIDTH 
+                                            CORNER-WIDTH
                                             CORNER-HEIGHT)))
      (doto handle
+       (set-antialias! :on)
        (set-mode! :fill)
        (set-fill-paint! (color :stroke-1))
        (set-shape! (RoundRectangle2D$Float. 1 0
@@ -56,12 +59,12 @@
                                             handle-height
                                             (/ CORNER-WIDTH 3)
                                             (/ CORNER-HEIGHT 3))))
-     (let [press-handler 
+     (let [press-handler
            (fn [event]
              (let [y (.getY event)]
                (reset! last-y y)))
 
-           drag-handler 
+           drag-handler
            (fn [event]
              (let [cur-y (.getY event)
                    dy (- cur-y @last-y)
@@ -69,7 +72,7 @@
                    y (+ cur-ty dy)
                    y (max 0 (min (- HEIGHT handle-height) y))
                    scale (float (/ (- HEIGHT y) HEIGHT))
-                   val (float (/ (- HEIGHT handle-height y) 
+                   val (float (/ (- HEIGHT handle-height y)
                                  (- HEIGHT handle-height)))]
                (.setTranslateY handle-tx y)
                (.setTranslateY slide-tx y)
@@ -102,7 +105,7 @@
       (set-shape! (Rectangle2D$Float. 0.0 0.0 400 400)))
     (.add group background)
     (dotimes [i 10]
-      (.add group (translate (+ 50 (* i 30)) 50 (:group (fader)))))
+      (.add group (translate (:group (fader)) (+ 50 (* i 30)) 50)))
     (set-scene! p group)
     p))
 

@@ -1,10 +1,10 @@
 (ns
   ^{:doc "A monome control"
-    :author "Jeff Rose"} 
+    :author "Jeff Rose"}
   overtone.gui.monome
   (:import
     (java.awt Dimension Color)
-    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup 
+    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup
                                  SGTransform SGComponent SGAbstractShape$Mode)
     (com.sun.scenario.scenegraph.fx FXShape FXText)
     (com.sun.scenario.scenegraph.event SGMouseAdapter)
@@ -36,14 +36,15 @@
     (doto back
       (set-mode! :fill)
       (set-fill-paint! (color :background))
-      (set-shape! (RoundRectangle2D$Float. x-pos y-pos 
-                                           SIZE SIZE 
+      (set-shape! (RoundRectangle2D$Float. x-pos y-pos
+                                           SIZE SIZE
                                            CORNER CORNER)))
     (doto box
+      (set-antialias! :on)       
       (set-mode! :stroke)
       (set-stroke-paint! (color :stroke-1))
       (set-shape! (RoundRectangle2D$Float. x-pos y-pos
-                                           SIZE SIZE 
+                                           SIZE SIZE
                                            CORNER CORNER)))
     (doto group
       (.add back)
@@ -52,7 +53,7 @@
     (on-mouse-pressed box press-handler)
     group))
 
-(defn monome 
+(defn monome
   ([x y] (monome x y false))
   ([x y handler]
    (let [width (* x FSIZE)
@@ -65,7 +66,7 @@
      (doto border
        (set-mode! :stroke)
        (set-stroke-paint! (color :stroke-1))
-       (set-shape! (RoundRectangle2D$Float. 0 0 width height 
+       (set-shape! (RoundRectangle2D$Float. 0 0 width height
                                             CORNER CORNER)))
      (.add group border)
 
