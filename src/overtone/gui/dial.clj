@@ -55,7 +55,7 @@
                                  (/ SIZE 2)
                                  (/ SIZE 2)
                                  0 360 Arc2D/OPEN)))
-     (add-watch value :gensym
+     (add-watch value (gensym "dial")
         (fn [_ _ _ new-val]
           (let [angle (- (* new-val 280))]
             (doto fill-arc
@@ -74,9 +74,9 @@
              (let [cur-y (.getY event)
                    dy (- @last-y cur-y)
                    dv (if (.isShiftDown event)
-                        0.001
-                        0.01)
-                   val (max 0 (min (+ @value (* dv dy)) 1))]
+                        (* 0.001 dy)
+                        (* 0.01 dy))
+                   val (max 0 (min (+ @value dv) 1))]
                (reset! value val)
                (reset! last-y cur-y)
                (if handler
@@ -110,8 +110,8 @@
     (.add group background)
 
     (dotimes [i 4]
-      (.add group (translate (:group (dial handler)) 
-                             (+ 50 (* i 60)) 
+      (.add group (translate (:group (dial handler))
+                             (+ 50 (* i 60))
                              50)))
 
     (set-scene! p group)

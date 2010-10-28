@@ -59,6 +59,17 @@
                                             handle-height
                                             (/ CORNER-WIDTH 3)
                                             (/ CORNER-HEIGHT 3))))
+
+     (add-watch value (gensym "fader")
+        (fn [_ _ _ new-val]
+          (let [y  (- HEIGHT (* new-val HEIGHT))
+                hy (- (- HEIGHT handle-height) 
+                      (* new-val (- HEIGHT handle-height))) ]
+            (.setTranslateY handle-tx hy)
+            (.setTranslateY slide-tx y)
+            (.setScaleY slide-scale new-val)
+            )))
+
      (let [press-handler
            (fn [event]
              (let [y (.getY event)]
@@ -67,16 +78,11 @@
            drag-handler
            (fn [event]
              (let [cur-y (.getY event)
-                   dy (- cur-y @last-y)
-                   cur-ty (.getTranslateY handle-tx)
-                   y (+ cur-ty dy)
-                   y (max 0 (min (- HEIGHT handle-height) y))
-                   scale (float (/ (- HEIGHT y) HEIGHT))
-                   val (float (/ (- HEIGHT handle-height y)
-                                 (- HEIGHT handle-height)))]
-               (.setTranslateY handle-tx y)
-               (.setTranslateY slide-tx y)
-               (.setScaleY slide-scale scale)
+                   dy (- @last-y cur-y)
+                   dv (if (.isShiftDown event)
+                        (* 0.001 dy)
+                        (* 0.01 dy))
+                   val (max 0 (min (+ @value dv) 1))]
                (reset! last-y cur-y)
                (reset! value val)
                (if handler

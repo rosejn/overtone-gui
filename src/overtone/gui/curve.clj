@@ -6,8 +6,8 @@
     (java.awt Graphics Dimension Color BasicStroke Font)
     (java.awt.font TextAttribute)
     (java.awt.geom Rectangle2D$Float Path2D$Float Arc2D$Float Arc2D)
-    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup 
-                                 SGTransform SGComponent 
+    (com.sun.scenario.scenegraph JSGPanel SGText SGShape SGGroup
+                                 SGTransform SGComponent
                                  SGAbstractShape$Mode)
     (com.sun.scenario.scenegraph.fx FXShape FXText)
     (com.sun.scenario.scenegraph.event SGMouseAdapter)
@@ -87,12 +87,9 @@
 
 (defn curve []
   (let [points (map #(apply canvas-to-curve %) (:points @curve*))
- ;       _ (println "points: " points)
         init-lvl (ffirst points)
         n-segs (dec (count points))
- ;       _ (println "init: " init-lvl " n-segs: " n-segs)
         [segs _] (reduce (fn [[segs last-x] [x y]]
- ;                      (println "segs: " segs "\nlast-x: " last-x "\nx,y: " x y)
                        (let [dur (- x last-x)]
                          [(concat segs [y dur 5 -4]) x]))
                      [[] 0.0] (rest points))]
