@@ -23,7 +23,7 @@
 
 (defonce curve* (ref {:curve (adsr)
                       :line nil
-                      :color (Color. 0 130 226)
+                      :color (get-color. 0 130 226)
                       :fill-alpha 120
                       :width 600
                       :height 400
@@ -102,7 +102,7 @@
   (curve-color :red)
   (curve-color 0 30 120)
   (curve-color 0 30 120 100)
-  (curve-color (Color. 0 30 120))
+  (curve-color (get-color. 0 30 120))
   "
   [& args]
   (let [arg (first args)
@@ -158,7 +158,7 @@
     (doto label ; coordinate label
       (.setText (format "(%2.3f, %2.3f)" cx cy))
       (.setFont (:label-font @curve*))
-      (.setFillPaint (Color. 255 255 255))
+      (.setFillPaint (get-color. 255 255 255))
       (.setTranslateX radius)
       (.setTranslateY (* 2 radius))
       (.setVisible false))
@@ -202,8 +202,8 @@
       (.setShape line-path)
       (set-antialias! :on)
       (set-mode! :stroke-fill)
-      (set-stroke-paint! (color :stroke-1))
-      (set-fill-paint! (color :fill-1)))
+      (set-stroke-paint! (get-color :stroke-1))
+      (set-fill-paint! (get-color :fill-1)))
 
     (dosync (alter curve* assoc :points points))
     (dosync (alter curve* assoc :line line))
@@ -226,13 +226,13 @@
     (doto background
       (set-mode! :stroke-fill)
       (set-stroke-paint! 100 100 100)
-      (set-fill-paint! (color :background))
+      (set-fill-paint! (get-color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 (:width @curve*) (:height @curve*))))
     (.add curve-group background)
 
     ; grid
     (set-mode! grid :stroke)
-    (set-stroke-paint! grid (color :grid-lines))
+    (set-stroke-paint! grid (get-color :grid-lines))
 
     (let [[start-x start-y] (curve-to-canvas 0.0 0.0 0 0)]
       (.moveTo grid-path start-x start-y))

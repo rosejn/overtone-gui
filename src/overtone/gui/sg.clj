@@ -199,7 +199,7 @@
                 :yellow     Color/YELLOW})
 
 (defn set-stroke-paint!
-  ([node color] 
+  ([node color]
    (if (= java.awt.Color (type color))
      (.setDrawPaint node color)
      (.setDrawPaint node (color-map color))))
@@ -208,8 +208,8 @@
 
 (defn set-fill-paint!
   ([node color]
-   (cond 
-     (= java.awt.Color (type color)) (.setFillPaint node color) 
+   (cond
+     (= java.awt.Color (type color)) (.setFillPaint node color)
      (keyword? color) (.setFillPaint node (color-map color))))
   ([node r g b] (.setFillPaint node (Color. r g b)))
   ([node r g b a] (.setFillPaint node (Color. r g b a))))

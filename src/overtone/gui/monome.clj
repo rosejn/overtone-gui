@@ -15,37 +15,47 @@
     [overtone event]
     [overtone.gui swing sg color]))
 
-(def SIZE 20)
-(def MARGIN 2)
-(def FSIZE (+ SIZE MARGIN))
-(def CORNER 3)
+(def MONOME-BUTTON-SIZE 25)
+(def MONOME-MARGIN 6)
+(def FMONOME-BUTTON-SIZE (+ MONOME-BUTTON-SIZE MONOME-MARGIN))
+(def MONOME-CORNER 3)
 
-(defn m-button [x y handler]
-  (let [group (sg-group)
-        back (sg-shape)
-        box (sg-shape)
-        x-pos (* x FSIZE)
-        y-pos (* y FSIZE)
+(defn m-button [monome x y]
+  (let [{:keys [color handler]} monome
+        group  (sg-group)
+        back   (sg-shape)
+        box    (sg-shape)
+        x-pos  (+ (* x FMONOME-BUTTON-SIZE) MONOME-MARGIN)
+        y-pos  (+ (* y FMONOME-BUTTON-SIZE) MONOME-MARGIN)
         status (atom false)
         press-handler (fn [event]
+                        (swap! status not)
                         (if handler
-                          (handler x y (swap! status not)))
+                          (handler x y @status))
                         (if @status
-                          (set-fill-paint! back (color :fill-1))
-                          (set-fill-paint! back (color :background))))]
+                          (set-fill-paint! back (fill-color @color))
+                          (set-fill-paint! back (get-color :background))))]
     (doto back
       (set-mode! :fill)
-      (set-fill-paint! (color :background))
+      (set-fill-paint! (get-color :background))
       (set-shape! (RoundRectangle2D$Float. x-pos y-pos
-                                           SIZE SIZE
-                                           CORNER CORNER)))
+                                           MONOME-BUTTON-SIZE MONOME-BUTTON-SIZE
+                                           MONOME-CORNER MONOME-CORNER)))
+
+    (add-watch color (gensym "monome-color")
+               (fn [_ _ _ new-color]
+                 (if @status
+                   (set-fill-paint! back (fill-color new-color))
+                   (set-fill-paint! back (get-color :background)))
+                 (set-stroke-paint! box new-color)))
+
     (doto box
-      (set-antialias! :on)       
+      (set-antialias! :on)
       (set-mode! :stroke)
-      (set-stroke-paint! (color :stroke-1))
+      (set-stroke-paint! @color)
       (set-shape! (RoundRectangle2D$Float. x-pos y-pos
-                                           SIZE SIZE
-                                           CORNER CORNER)))
+                                           MONOME-BUTTON-SIZE MONOME-BUTTON-SIZE
+                                           MONOME-CORNER MONOME-CORNER)))
     (doto group
       (.add back)
       (.add box))
@@ -54,45 +64,53 @@
     group))
 
 (defn monome
-  ([x y] (monome x y false))
-  ([x y handler]
-   (let [width (* x FSIZE)
-         height (* y FSIZE)
-         group (sg-group)
-         border (sg-shape)
-         buttons (doall (for [i (range x)
-                              j (range y)]
-                          (m-button i j handler)))]
+  ([columns rows] (monome columns rows false))
+  ([columns rows handler]
+   (let [width   (+ MONOME-MARGIN (* columns FMONOME-BUTTON-SIZE))
+         height  (+ MONOME-MARGIN (* rows FMONOME-BUTTON-SIZE))
+         group   (sg-group)
+         border  (sg-shape)
+         m-color (atom (get-color :stroke-1))
+         mono    {:type :monome
+                  :group group
+                  :columns columns
+                  :rows rows
+                  :handler handler
+                  :color m-color}
+         buttons (doall (for [i (range columns)
+                              j (range rows)]
+                          (m-button mono i j)))]
      (doto border
        (set-mode! :stroke)
-       (set-stroke-paint! (color :stroke-1))
+       (set-stroke-paint! @m-color)
        (set-shape! (RoundRectangle2D$Float. 0 0 width height
-                                            CORNER CORNER)))
-     (.add group border)
+                                            MONOME-CORNER 
+                                            MONOME-CORNER)))
+     (add! group border)
 
      (doseq [button buttons]
-       (.add group button))
+       (add! group button))
 
-     group)))
-
+     mono)))
 
 (defn monome-panel []
   (let [x 10
         y 10
         scale-factor 1.5
-        width (* scale-factor x FSIZE)
-        height (* scale-factor y FSIZE)
+        width (* scale-factor x FMONOME-BUTTON-SIZE)
+        height (* scale-factor y FMONOME-BUTTON-SIZE)
         p (sg-panel width height)
         group (sg-group)
         background (sg-shape)
         handler (fn [x y state] (println x y state))]
     (doto background
       (set-mode! :fill)
-      (set-fill-paint! (color :background))
+      (set-fill-paint! (get-color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 width height)))
     (doto group
       (.add background)
-      (.add (scale (monome 10 10 handler) scale-factor scale-factor)))
+      (.add (scale (:group (monome 10 10 handler)) 
+                   scale-factor scale-factor)))
     (set-scene! p group)
     p))
 

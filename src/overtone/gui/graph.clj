@@ -29,7 +29,7 @@
       (.setText text)
       (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
       (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
-      (.setFillPaint (color :text)))))
+      (.setFillPaint (get-color :text)))))
 
 (defn ugen-mouse-listener [glow anim]
   (proxy [SGMouseAdapter] []
@@ -61,8 +61,8 @@
                                           NODE-ARC NODE-ARC))
       (.setMode SGAbstractShape$Mode/STROKE_FILL)
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      (.setFillPaint (color :fill-1))
-      (.setDrawPaint (color :stroke-1))
+      (.setFillPaint (get-color :fill-1))
+      (.setDrawPaint (get-color :stroke-1))
       (.setDrawStroke (BasicStroke. 1.15)))
 
     (.setEffect box glow)
@@ -135,7 +135,7 @@
       (.setText text)
       (.setFont (Font. "SansSerif" Font/BOLD NODE-FONT-SIZE))
       (.setAntialiasingHint RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
-      (.setFillPaint (color :text)))))
+      (.setFillPaint (get-color :text)))))
 
 (def BUTTON-WIDTH 20)
 (def BUTTON-HEIGHT 18)
@@ -147,10 +147,10 @@
                                180 180 Arc2D$Float/CHORD))
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
       ;(set-mode! :stroke)
-      (.setDrawPaint (color :button-stroke))
+      (.setDrawPaint (get-color :button-stroke))
       (.setDrawStroke (BasicStroke. 2.0))
       (set-mode! :fill)
-      (.setFillPaint (color :button-fill)))
+      (.setFillPaint (get-color :button-fill)))
 
     (on-mouse-clicked button #(apply kill ids))
     button))
@@ -166,8 +166,8 @@
       (.setShape (RoundRectangle2D$Float. 0 0 width height NODE-ARC NODE-ARC))
       (set-mode! :stroke-fill)
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
-      (.setFillPaint (color :node-bg))
-      (.setDrawPaint (color :stroke-1))
+      (.setFillPaint (get-color :node-bg))
+      (.setDrawPaint (get-color :stroke-1))
       (.setDrawStroke (BasicStroke. 1.15)))
 
     (set-location! lbl NODE-PAD-X NODE-PAD-Y)
@@ -189,7 +189,7 @@
       (.setShape (Rectangle2D$Float. 0 0 width height))
       (.setAntialiasingHint RenderingHints/VALUE_ANTIALIAS_ON)
       (set-mode! :fill)
-      (.setFillPaint (color :highlight)))
+      (.setFillPaint (get-color :highlight)))
     (translate box x y)))
 
 (def dimensions
@@ -225,7 +225,7 @@
     (.add (.getContentPane g-frame) g-panel)
 
     (doto g-panel
-      (.setBackground (color :background))
+      (.setBackground (get-color :background))
       (.setScene (draw-shapes-scene))
       (.setPreferredSize (Dimension. 500 500)))
 
@@ -247,7 +247,7 @@
     (.add (.getContentPane g-frame) g-panel)
 
     (doto g-panel
-      (.setBackground (color :background))
+      (.setBackground (get-color :background))
       (.setScene (sdef-view sdef))
       (.setPreferredSize (Dimension. 1000 1000)))
 

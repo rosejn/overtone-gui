@@ -15,7 +15,7 @@
     [overtone event]
     [overtone.gui swing sg color]))
 
-(def SIZE 50)
+(def DIAL-SIZE 30)
 
 (defn dial
   ([] (dial false))
@@ -24,36 +24,37 @@
          ring (sg-shape)
          back-fill (sg-shape)
          front-fill (sg-shape)
-         fill-arc (Arc2D$Float. 0 0 SIZE SIZE
+         fill-arc (Arc2D$Float. 0 0 DIAL-SIZE DIAL-SIZE
                                  -130 -200 Arc2D/PIE)
          center (sg-shape)
          value (atom 0.8)
-         last-y (atom 0)]
+         last-y (atom 0)
+         d-color (atom (get-color :stroke-1))]
      (doto ring
        (set-antialias! :on)
        (set-mode! :stroke)
        (set-draw-stroke! 1.5)
-       (set-stroke-paint! (color :stroke-1))
-       (set-shape! (Arc2D$Float. 0 0 SIZE SIZE -130 -280 Arc2D/OPEN)))
+       (set-stroke-paint! @d-color)
+       (set-shape! (Arc2D$Float. 0 0 DIAL-SIZE DIAL-SIZE -130 -280 Arc2D/OPEN)))
      (doto back-fill
        (set-antialias! :on)
        (set-mode! :fill)
-       (set-fill-paint! (color :fill-1))
-       (set-shape! (Arc2D$Float. 0 0 SIZE SIZE
+       (set-fill-paint! (fill-color @d-color))
+       (set-shape! (Arc2D$Float. 0 0 DIAL-SIZE DIAL-SIZE
                                  -130 -280 Arc2D/PIE)))
      (doto front-fill
        (set-antialias! :on)
        (set-mode! :fill)
-       (set-fill-paint! (color :stroke-1))
+       (set-fill-paint! @d-color)
        (set-shape! fill-arc))
      (doto center
        (set-antialias! :on)
        (set-mode! :fill)
-       (set-fill-paint! (color :background))
-       (set-shape! (Arc2D$Float. (/ SIZE 4)
-                                 (/ SIZE 4)
-                                 (/ SIZE 2)
-                                 (/ SIZE 2)
+       (set-fill-paint! (get-color :background))
+       (set-shape! (Arc2D$Float. (/ DIAL-SIZE 4)
+                                 (/ DIAL-SIZE 4)
+                                 (/ DIAL-SIZE 2)
+                                 (/ DIAL-SIZE 2)
                                  0 360 Arc2D/OPEN)))
      (add-watch value (gensym "dial")
         (fn [_ _ _ new-val]
@@ -61,6 +62,12 @@
             (doto fill-arc
               (.setAngleExtent angle))
             (set-shape! front-fill fill-arc))))
+
+     (add-watch d-color (gensym "dial-color")
+                (fn [_ _ _ new-color]
+                  (set-stroke-paint! ring new-color)
+                  (set-fill-paint! back-fill (fill-color new-color))
+                  (set-fill-paint! front-fill new-color)))
 
      (reset! value 0.5)
 
@@ -88,15 +95,17 @@
        (on-mouse-dragged front-fill drag-handler)
        (on-mouse-dragged center drag-handler))
 
+
      (doto group
-       (.add back-fill)
-       (.add front-fill)
-       (.add center)
-       (.add ring))
+       (add! back-fill)
+       (add! front-fill)
+       (add! center)
+       (add! ring))
 
      {:type :dial
       :group group
-      :value value})))
+      :value value
+      :color d-color})))
 
 (defn dial-panel []
   (let [p (sg-panel 400 400)
@@ -105,7 +114,7 @@
         handler #(println %)]
     (doto background
       (set-mode! :fill)
-      (set-fill-paint! (color :background))
+      (set-fill-paint! (get-color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 400 400)))
     (.add group background)
 

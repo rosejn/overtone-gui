@@ -15,56 +15,56 @@
     [overtone event]
     [overtone.gui swing sg color]))
 
-(def WIDTH 20)
-(def HEIGHT 120)
-(def CORNER-WIDTH 5)
-(def CORNER-HEIGHT 5)
+(def FADER-WIDTH 20)
+(def FADER-HEIGHT 140)
+(def FADER-CORNER-FADER-WIDTH 5)
+(def FADER-CORNER-FADER-HEIGHT 5)
 
 (defn fader
   ([] (fader false))
   ([handler]
    (let [group (sg-group)
          box (sg-shape)
-         handle-height (/ HEIGHT 15)
+         handle-height (/ FADER-HEIGHT 15)
          handle (sg-shape)
          handle-tx (translate handle 0 0)
          slide (sg-shape)
-         slide-scale (scale slide 1 (/ (- HEIGHT handle-height) HEIGHT))
+         slide-scale (scale slide 1 (/ (- FADER-HEIGHT handle-height) FADER-HEIGHT))
          slide-tx (translate slide-scale 1 handle-height)
          value (atom 0.8)
          last-y (atom 0)]
      (doto box
        (set-antialias! :on)
        (set-mode! :stroke)
-       (set-stroke-paint! (color :stroke-1))
-       (set-shape! (RoundRectangle2D$Float. 0 0 WIDTH HEIGHT
-                                            CORNER-WIDTH
-                                            CORNER-HEIGHT)))
+       (set-stroke-paint! (get-color :stroke-1))
+       (set-shape! (RoundRectangle2D$Float. 0 0 FADER-WIDTH FADER-HEIGHT
+                                            FADER-CORNER-FADER-WIDTH
+                                            FADER-CORNER-FADER-HEIGHT)))
 
      (doto slide
        (set-antialias! :on)
        (set-mode! :fill)
-       (set-fill-paint! (color :fill-1))
-       (set-shape! (RoundRectangle2D$Float. 1 0
-                                            (- WIDTH 2)
-                                            HEIGHT
-                                            CORNER-WIDTH
-                                            CORNER-HEIGHT)))
+       (set-fill-paint! (get-color :fill-1))
+       (set-shape! (RoundRectangle2D$Float. 0 0
+                                            FADER-WIDTH
+                                            FADER-HEIGHT
+                                            FADER-CORNER-FADER-WIDTH
+                                            FADER-CORNER-FADER-HEIGHT)))
      (doto handle
        (set-antialias! :on)
        (set-mode! :fill)
-       (set-fill-paint! (color :stroke-1))
-       (set-shape! (RoundRectangle2D$Float. 1 0
-                                            (- WIDTH 2)
+       (set-fill-paint! (get-color :stroke-1))
+       (set-shape! (RoundRectangle2D$Float. 0 0
+                                            FADER-WIDTH
                                             handle-height
-                                            (/ CORNER-WIDTH 3)
-                                            (/ CORNER-HEIGHT 3))))
+                                            (/ FADER-CORNER-FADER-WIDTH 2)
+                                            (/ FADER-CORNER-FADER-HEIGHT 2))))
 
      (add-watch value (gensym "fader")
         (fn [_ _ _ new-val]
-          (let [y  (- HEIGHT (* new-val HEIGHT))
-                hy (- (- HEIGHT handle-height) 
-                      (* new-val (- HEIGHT handle-height))) ]
+          (let [y  (- FADER-HEIGHT (* new-val FADER-HEIGHT))
+                hy (- (- FADER-HEIGHT handle-height)
+                      (* new-val (- FADER-HEIGHT handle-height))) ]
             (.setTranslateY handle-tx hy)
             (.setTranslateY slide-tx y)
             (.setScaleY slide-scale new-val)
@@ -93,9 +93,9 @@
        (on-mouse-dragged slide drag-handler))
 
      (doto group
-       (.add slide-tx)
-       (.add box)
-       (.add handle-tx))
+       (add! slide-tx)
+       (add! handle-tx)
+       (add! box))
 
      {:type :fader
       :group group
@@ -107,7 +107,7 @@
         background (sg-shape)]
     (doto background
       (set-mode! :fill)
-      (set-fill-paint! (color :background))
+      (set-fill-paint! (get-color :background))
       (set-shape! (Rectangle2D$Float. 0.0 0.0 400 400)))
     (.add group background)
     (dotimes [i 10]

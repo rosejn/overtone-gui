@@ -11,7 +11,7 @@
         (overtone.gui swing)))
 
 (def color* (ref
-              {:fill-1 (Color. 0 130 226 100)
+              {:fill-1 (Color. 0 130 226 150)
                :stroke-1 (Color. 0 140 236)
                :background (Color. 40 40 40)
                :grid-lines (Color. 80 80 80)
@@ -25,8 +25,17 @@
                :button-fill   (Color. 255 50 50 120)
                }))
 
-(defn color [tag]
+(defn get-color [tag]
   (get @color* tag (:current-color @color*)))
+
+(defn fill-color
+  "Create a fill color from a corresponding stroke color."
+  [col]
+  (let [dark (.darker col)
+        r (.getRed dark)
+        g (.getGreen dark)
+        b (.getBlue dark)]
+    (Color. r g b 150)))
 
 (def color-handler* (ref nil))
 
@@ -44,7 +53,7 @@
         choosers (.getChooserPanels color-chooser)
         preview (JPanel.)]
     (doto color-chooser
-      (.setBackground (color :background))
+      (.setBackground (get-color :background))
       ;(.setForeground (color :foreground))
       (.setChooserPanels (into-array [(nth choosers 1)]))
       (.setPreviewPanel preview)
@@ -54,10 +63,10 @@
 
     (comment doseq [cp choosers]
       (doto cp
-        (.setBackground (color :background))
-        (.setForeground (color :foreground)))
+        (.setBackground (get-color :background))
+        (.setForeground (get-color :foreground)))
       (doseq [comp (seq (.getComponents cp))]
-        (.setBackground comp (color :background))))
+        (.setBackground comp (get-color :background))))
 
     (-> color-chooser
       (.getSelectionModel)
