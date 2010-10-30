@@ -1,9 +1,9 @@
 (ns overtone.gui.sg
-  ^{:doc "Scenegraph syntactic sugar"
-     :author "Fabian Aussems"}
-  (:gen-class)
-  (:require [clojure.contrib.str-utils2 :as s2])
-  (:use [overtone util event])
+  ^{:doc "A scenegraph based gui API for Overtone."
+     :author "Fabian Aussems & Jeff Rose"}
+  (:refer-clojure :exclude [remove])
+  (:use [overtone util event]
+        [clojure.contrib.str-utils2 :only (capitalize)])
   (:import
    (com.sun.scenario.scenegraph
      JSGPanel ProportionalPaint SGAbstractGeometry SGAbstractShape
@@ -15,8 +15,8 @@
      SGTransform$Rotate SGTransform$Scale SGTransform$Shear
      SGTransform$Translate SGWrapper)
    (com.sun.scenario.scenegraph.event
-     SGFocusListener SGKeyListener SGMouseAdapter SGNodeListener
-     SGMouseAdapter SGNodeEvent)
+     SGFocusListener SGNodeListener SGNodeEvent 
+     SGKeyListener SGMouseListener)
    (com.sun.scenario.effect
      AbstractGaussian Blend Bloom Brightpass ColorAdjust DropShadow
      Effect GaussianBlur Identity Merge Offset PhongLighting SepiaTone
@@ -25,126 +25,104 @@
      DistantLight Light PointLight SpotLight Light$Type )
    (java.awt BasicStroke BorderLayout Color Point Dimension
              Font Insets RenderingHints Shape)
-   (java.awt.event MouseEvent MouseListener MouseAdapter)
-   (java.awt.geom Arc2D Ellipse2D Point2D$Float Rectangle2D
-                  RoundRectangle2D)
+   (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter)
+   (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
+                  CubicCurve2D$Double QuadCurve2D$Double
+                  Rectangle2D$Double RoundRectangle2D$Double
+                  Arc2D Arc2D$Double Ellipse2D$Double)
    (java.awt.image.BufferedImage)
    (javax.swing JComponent JLabel JPanel JFrame JSlider JTabbedPane)
    (javax.swing.border.EmptyBorder)
    (javax.swing.event ChangeEvent ChangeListener)))
 
-(defn sg-panel
+(defn frame 
+  ([name]
+   (JFrame. name))
+  ([name width height]
+   (doto (JFrame. name)
+     (.setPreferredSize (Dimension. width height)))))
+
+(defn panel
   ([] (doto (JSGPanel.)
         (.setBackground java.awt.Color/GRAY)))
-  ([w h] (doto (sg-panel)
+  ([w h] (doto (panel)
            (.setPreferredSize (java.awt.Dimension. w h)))))
 
-(defn set-scene! [panel scene] (.setScene panel scene))
+(defn set-scene [panel scene] 
+  (.setScene panel scene))
 
-(defn on-focus-gained
-  "on focus gained event"
-  [component handler]
-  (. component addFocusListener
-     (proxy [SGFocusListener] []
-       (focusGained [event node] (run-handler handler event node))
-       (focusLost [event node]))))
+(defn group 
+  "Create a scenegraph group node."
+  [] 
+  (SGGroup.))
 
-(defn on-focus-lost
-  "on focus lost event"
-  [component handler]
-  (. component addFocusListener
-      (proxy [SGFocusListener] []
-        (focusGained [event node] )
-        (focusLost [event node] (run-handler handler event node)))))
+(defn shape 
+  "Create a scenegraph shape node."
+  ([] (SGShape.))
+  ([path]
+   (let [s (SGShape.)]
+     (set-shape s path))))
 
-(defn on-key-pressed [component handler]
-  (. component addKeyListener
-      (proxy [SGKeyListener] []
-        (keyPressed [event node] (run-handler handler event node))
-        (keyReleased [event node])
-        (keyTyped [event node] ))))
+(defn text 
+  "Create a text scenegraph node."
+  [] 
+  (SGText.))
 
-(defn on-key-released [component handler]
-  (. component addKeyListener
-      (proxy [SGKeyListener] []
-        (keyPressed [event node])
-        (keyReleased [event node] (run-handler handler event node))
-        (keyTyped [event node] ))))
-
-(defn on-key-typed [component handler]
-  (. component addKeyListener
-      (proxy [SGKeyListener] []
-        (keyPressed [event node] )
-        (keyReleased [event node] )
-        (keyTyped [event node] (run-handler handler event node)))))
-
-(defn on-mouse-clicked [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseClicked [event node] (run-handler handler event node)))))
-
-(defn on-mouse-dragged [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseDragged [event node] (run-handler handler event node)))))
-
-(defn on-mouse-entered [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseEntered [event node] (run-handler handler event node)))))
-
-(defn on-mouse-exited [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseExited [event node]  (run-handler handler event node) ))))
-
-(defn on-mouse-moved [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseMoved [event node] (run-handler handler event node)))))
-
-(defn on-mouse-pressed [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mousePressed [event node] (run-handler handler event node)))))
-
-(defn on-mouse-released [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseReleased [event node] (run-handler handler event node) ))))
-
-(defn on-mouse-wheel-moved [component handler]
-  (. component addMouseListener
-      (proxy [SGMouseAdapter] []
-        (mouseWheelMoved [event node] (run-handler handler event node)))))
-
-(defn on-bounds-changed [component handler]
-  (. component addNodeListener
-      (proxy [SGNodeListener] []
-        (boundsChanged [event] (run-handler handler event)))))
-
-;; SGGroup
-
-(defn sg-group [] (SGGroup.))
-
-(defn add!
+(defn add
   "Add nodes to a scenegraph group."
   [group & nodes]
   (doseq [node nodes]
     (.add group node)))
 
-(defn remove!
+(defn remove
   "Remove nodes from a scenegraph group."
   [group & nodes]
   (doseq [node nodes]
     (.remove group node)))
 
-(defn sg-shape []
-  (SGShape.))
-
-(defn set-shape!
+(defn set-shape
+  "Set the 2D shape of a scenegraph shape node."
   [node shape]
   (.setShape node shape))
+
+(defn point [x y]
+  (Point2D$Double. x y))
+
+(defn line [x1 y1 x2 y2]
+  (Line2D$Double. x1 y1 x2 y2))
+
+(defn path []
+  (Path2D$Double.))
+
+(defn line-to [p x y]
+  (.lineTo p x y))
+
+(defn move-to [p x y]
+  (.moveTo p x y))
+
+;; CubicCurve2D$Double QuadCurve2D$Double
+
+(def ARC-TYPES
+  {:chord Arc2D/CHORD
+   :open  Arc2D/OPEN
+   :pie   Arc2D/PIE})
+
+(defn arc 
+  ([x y width height start-angle extent]
+    (arc x y width height start-angle extent :open))
+  ([x y width height start-angle extent close-type]
+   (Arc2D$Double. x y width height 
+                  start-angle extent
+                  (get ARC-TYPES close-type))))
+
+(defn ellipse [x y width height]
+  (Ellipse2D$Double. x y width height))
+
+(defn round-rectangle [x y width height corner-width corner-height]
+  (RoundRectangle2D$Double. x y width height corner-width corner-height))
+
+(defn rectangle [x y width height]
+  (Rectangle2D$Double. x y width height))
 
 ;; Transformations applied to a group affect all children
 
@@ -164,13 +142,11 @@
   [node tx ty]
   (SGTransform$Translate/createTranslation tx ty node))
 
-;; SGAbstractShape
-
 (def shape-mode-map {:fill        SGAbstractShape$Mode/FILL
                      :stroke      SGAbstractShape$Mode/STROKE
                      :stroke-fill SGAbstractShape$Mode/STROKE_FILL})
 
-(defn set-mode! [node mode] (.setMode node (shape-mode-map mode)))
+(defn mode [node mode] (.setMode node (shape-mode-map mode)))
 
 (def stroke-cap-map  {:butt   BasicStroke/CAP_BUTT
                       :round  BasicStroke/CAP_ROUND
@@ -180,7 +156,7 @@
                       :miter  BasicStroke/JOIN_MITER
                       :round  BasicStroke/JOIN_ROUND})
 
-(defn set-draw-stroke!
+(defn stroke-style
   ([node width] (.setDrawStroke node (BasicStroke. width)))
   ([node width cap join] (.setDrawStroke node (BasicStroke. width (stroke-cap-map cap) (stroke-join-map join)))))
 
@@ -198,7 +174,11 @@
                 :white      Color/WHITE
                 :yellow     Color/YELLOW})
 
-(defn set-stroke-paint!
+(defn color 
+  ([r g b] (Color. r g b))
+  ([r g b a] (Color. r g b a)))
+
+(defn stroke-color
   ([node color]
    (if (= java.awt.Color (type color))
      (.setDrawPaint node color)
@@ -206,15 +186,13 @@
   ([node r g b] (.setDrawPaint node (Color. r g b)))
   ([node r g b a] (.setDrawPaint node (Color. r g b a))))
 
-(defn set-fill-paint!
+(defn fill-color
   ([node color]
    (cond
      (= java.awt.Color (type color)) (.setFillPaint node color)
      (keyword? color) (.setFillPaint node (color-map color))))
   ([node r g b] (.setFillPaint node (Color. r g b)))
   ([node r g b a] (.setFillPaint node (Color. r g b a))))
-
-;; SGAbstractGeometry
 
 (defn set-width! [node w] (.setWidth node w))
 (defn set-height! [node h] (.setHeight node h))
@@ -305,20 +283,20 @@
                     :off     RenderingHints/VALUE_ANTIALIAS_OFF
                     :on      RenderingHints/VALUE_ANTIALIAS_ON})
 
-(defn set-antialias! [node value] (.setAntialiasingHint node (antialias-map value)))
+(defn anti-alias [node value] (.setAntialiasingHint node (antialias-map value)))
 
-;; SGText
-
-(defn sg-text [] (SGText.))
 (defn set-location! [node x y]
-  (.setLocation node (Point2D$Float. x y)))
+  (.setLocation node (Point2D$Double. x y)))
+
 (defn set-text! [node text] (.setText node text))
 
 (def font-style-map {:plain  Font/PLAIN
                      :italic Font/ITALIC
                      :bold   Font/BOLD})
 
-(defn set-font! [node name style size] (.setFont node (Font. name (font-style-map style) size)))
+(defn set-font! 
+  [node name style size] 
+  (.setFont node (Font. name (font-style-map style) size)))
 
 (def text-antialias-map {:default  RenderingHints/VALUE_TEXT_ANTIALIAS_DEFAULT
                          :gasp     RenderingHints/VALUE_TEXT_ANTIALIAS_GASP
@@ -331,11 +309,8 @@
 
 (defn set-text-antialias! [node val] (.setAntialiasingHint node (text-antialias-map val)))
 
-
-;; Effects
-
-(defmacro on-property-change [component [event] & body]
-  `(. ~component addPropertyChangeListener
+(defmacro on-property-change [node [event] & body]
+  `(. ~node addPropertyChangeListener
       (proxy [java.beans.PropertyChangeListener] []
         (propertyChange [~event] ~@body))))
 
@@ -368,8 +343,8 @@
                      :point   Light$Type/POINT
                      :spot    Light$Type/SPOT})
 
-(defmacro set-prop! [component kw val]
-  `( ~(symbol (str ".set" (s2/capitalize (name kw)))) ~component ~val))
+(defmacro set-prop! [node kw val]
+  `( ~(symbol (str ".set" (capitalize (name kw)))) ~node ~val))
 
 ; (macroexpand-1 `(set-prop! glow :level 0.1))
 
@@ -398,13 +373,115 @@
 ;(println (macroexpand-1 `(fx :shadow [] fx (println fx))))
 ;(effect :glow [] fx (doto fx (.setLevel 0.4)))
 
-;; sg-component
-
-(defn sg-component
+(defn component
   ([] (SGComponent.))
   ([comp]
-     (doto (sg-component)
+     (doto (component)
        (.setComponent comp)))
   ([comp w h]
-     (doto (sg-component comp)
+     (doto (component comp)
        (.setSize w h))))
+
+(defn on-focus-gained
+  "on focus gained event"
+  [node handler]
+  (.addFocusListener node
+     (reify SGFocusListener
+       (focusGained [this event node] 
+         (run-handler handler event node))
+       (focusLost [this event node]))))
+
+(defn on-focus-lost
+  "on focus lost event"
+  [node handler]
+  (.addFocusListener node
+      (reify SGFocusListener
+        (focusGained [this event node])
+        (focusLost [this event node] 
+          (run-handler handler event node)))))
+
+(defn key-event [e]
+  {:key (KeyEvent/getKeyText (.getKeyCode e))
+   :modifiers (KeyEvent/getKeyModifiersText (.getModifiers e))})
+
+(defn on-key-pressed [node handler]
+  (.addKeyListener node 
+      (reify SGKeyListener
+        (keyPressed [this event node] 
+                    (run-handler handler (key-event event) node))
+        (keyReleased [this event node])
+        (keyTyped [this event node] ))))
+
+(defn on-key-released [node handler]
+  (.addKeyListener node 
+      (reify SGKeyListener
+        (keyPressed [this event node])
+        (keyReleased [this event node] 
+                     (run-handler handler (key-event event) node))
+        (keyTyped [this event node] ))))
+
+(defn on-key-typed [node handler]
+  (.addKeyListener node 
+      (proxy [SGKeyListener] []
+        (keyPressed [this event node])
+        (keyReleased [this event node])
+        (keyTyped [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-mouse-clicked [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseClicked [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-mouse-dragged [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseDragged [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-mouse-entered [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseEntered [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-mouse-exited [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseExited [this event node]  
+          (run-handler handler event node) ))))
+
+(defn on-mouse-moved [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseMoved [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-mouse-pressed [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mousePressed [this event node] 
+                      (try
+                        (run-handler handler event node)
+                        (catch Exception e
+                          (println "Exception in handler: " e)
+                          (.printStackTrace e)))))))
+
+(defn on-mouse-released [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseReleased [this event node] 
+          (run-handler handler event node) ))))
+
+(defn on-mouse-wheel-moved [node handler]
+  (.addMouseListener node
+      (reify SGMouseListener
+        (mouseWheelMoved [this event node] 
+          (run-handler handler event node)))))
+
+(defn on-bounds-changed [node handler]
+  (.addNodeListener node
+      (reify SGNodeListener
+        (boundsChanged [this event] (run-handler handler event)))))
+

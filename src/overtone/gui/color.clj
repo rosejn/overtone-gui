@@ -28,7 +28,7 @@
 (defn get-color [tag]
   (get @color* tag (:current-color @color*)))
 
-(defn fill-color
+(defn transparent-color
   "Create a fill color from a corresponding stroke color."
   [col]
   (let [dark (.darker col)
