@@ -32,14 +32,14 @@
     (doto back
       (sg/mode :fill)
       (sg/fill-color (get-color :background))
-      (sg/set-shape (sg/round-rectangle x-pos y-pos 
+      (sg/set-shape (sg/round-rectangle x-pos y-pos
                                   MONOME-BUTTON-SIZE MONOME-BUTTON-SIZE
                                   MONOME-CORNER MONOME-CORNER)))
 
     (add-watch color (gensym "monome-color")
                (fn [_ _ _ new-color]
                  (if @status
-                   (sg/fill-color back (fill-color new-color))
+                   (sg/fill-color back (transparent-color new-color))
                    (sg/fill-color back (get-color :background)))
                  (sg/stroke-color box new-color)))
 
@@ -50,11 +50,9 @@
       (sg/set-shape (sg/round-rectangle x-pos y-pos
                                        MONOME-BUTTON-SIZE MONOME-BUTTON-SIZE
                                        MONOME-CORNER MONOME-CORNER)))
-    (sg/add group 
-            back box)
+    (sg/add group back box)
+    (sg/on-mouse group :press press-handler)
 
-    (sg/on-mouse-pressed back press-handler)
-    (sg/on-mouse-pressed box press-handler)
     group))
 
 (defn monome
@@ -82,4 +80,8 @@
                                         MONOME-CORNER)))
      (apply sg/add group border buttons)
 
-     mono)))
+     (assoc mono :buttons buttons))))
+
+(defn monome-led-on [x y])
+(defn monome-led-off [x y])
+

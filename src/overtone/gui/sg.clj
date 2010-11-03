@@ -15,7 +15,7 @@
      SGTransform$Rotate SGTransform$Scale SGTransform$Shear
      SGTransform$Translate SGWrapper)
    (com.sun.scenario.scenegraph.event
-     SGFocusListener SGNodeListener SGNodeEvent 
+     SGFocusListener SGNodeListener SGNodeEvent
      SGKeyListener SGMouseListener)
    (com.sun.scenario.effect
      AbstractGaussian Blend Bloom Brightpass ColorAdjust DropShadow
@@ -35,7 +35,7 @@
    (javax.swing.border.EmptyBorder)
    (javax.swing.event ChangeEvent ChangeListener)))
 
-(defn frame 
+(defn frame
   ([name]
    (JFrame. name))
   ([name width height]
@@ -48,24 +48,29 @@
   ([w h] (doto (panel)
            (.setPreferredSize (java.awt.Dimension. w h)))))
 
-(defn set-scene [panel scene] 
+(defn set-scene [panel scene]
   (.setScene panel scene))
 
-(defn group 
+(defn group
   "Create a scenegraph group node."
-  [] 
+  []
   (SGGroup.))
 
-(defn shape 
+(defn set-shape
+  "Set the 2D shape of a scenegraph shape node."
+  [node shape]
+  (.setShape node shape))
+
+(defn shape
   "Create a scenegraph shape node."
   ([] (SGShape.))
   ([path]
    (let [s (SGShape.)]
      (set-shape s path))))
 
-(defn text 
+(defn text
   "Create a text scenegraph node."
-  [] 
+  []
   (SGText.))
 
 (defn add
@@ -79,11 +84,6 @@
   [group & nodes]
   (doseq [node nodes]
     (.remove group node)))
-
-(defn set-shape
-  "Set the 2D shape of a scenegraph shape node."
-  [node shape]
-  (.setShape node shape))
 
 (defn point [x y]
   (Point2D$Double. x y))
@@ -107,11 +107,11 @@
    :open  Arc2D/OPEN
    :pie   Arc2D/PIE})
 
-(defn arc 
+(defn arc
   ([x y width height start-angle extent]
     (arc x y width height start-angle extent :open))
   ([x y width height start-angle extent close-type]
-   (Arc2D$Double. x y width height 
+   (Arc2D$Double. x y width height
                   start-angle extent
                   (get ARC-TYPES close-type))))
 
@@ -174,7 +174,7 @@
                 :white      Color/WHITE
                 :yellow     Color/YELLOW})
 
-(defn color 
+(defn color
   ([r g b] (Color. r g b))
   ([r g b a] (Color. r g b a)))
 
@@ -294,8 +294,8 @@
                      :italic Font/ITALIC
                      :bold   Font/BOLD})
 
-(defn set-font! 
-  [node name style size] 
+(defn set-font!
+  [node name style size]
   (.setFont node (Font. name (font-style-map style) size)))
 
 (def text-antialias-map {:default  RenderingHints/VALUE_TEXT_ANTIALIAS_DEFAULT
@@ -387,7 +387,7 @@
   [node handler]
   (.addFocusListener node
      (reify SGFocusListener
-       (focusGained [this event node] 
+       (focusGained [this event node]
          (run-handler handler event node))
        (focusLost [this event node]))))
 
@@ -397,7 +397,7 @@
   (.addFocusListener node
       (reify SGFocusListener
         (focusGained [this event node])
-        (focusLost [this event node] 
+        (focusLost [this event node]
           (run-handler handler event node)))))
 
 (defn key-event [e]
@@ -405,80 +405,52 @@
    :modifiers (KeyEvent/getKeyModifiersText (.getModifiers e))})
 
 (defn on-key-pressed [node handler]
-  (.addKeyListener node 
+  (.addKeyListener node
       (reify SGKeyListener
-        (keyPressed [this event node] 
+        (keyPressed [this event node]
                     (run-handler handler (key-event event) node))
         (keyReleased [this event node])
         (keyTyped [this event node] ))))
 
 (defn on-key-released [node handler]
-  (.addKeyListener node 
+  (.addKeyListener node
       (reify SGKeyListener
         (keyPressed [this event node])
-        (keyReleased [this event node] 
+        (keyReleased [this event node]
                      (run-handler handler (key-event event) node))
         (keyTyped [this event node] ))))
 
 (defn on-key-typed [node handler]
-  (.addKeyListener node 
+  (.addKeyListener node
       (proxy [SGKeyListener] []
         (keyPressed [this event node])
         (keyReleased [this event node])
-        (keyTyped [this event node] 
+        (keyTyped [this event node]
           (run-handler handler event node)))))
 
-(defn on-mouse-clicked [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseClicked [this event node] 
-          (run-handler handler event node)))))
+(defn- handle [handlers key event node]
+  (if-let [handler (get handlers key)]
+    (run-handler handler event node)))
 
-(defn on-mouse-dragged [node handler]
+(defn on-mouse [node & {:as handlers}]
   (.addMouseListener node
-      (reify SGMouseListener
-        (mouseDragged [this event node] 
-          (run-handler handler event node)))))
-
-(defn on-mouse-entered [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseEntered [this event node] 
-          (run-handler handler event node)))))
-
-(defn on-mouse-exited [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseExited [this event node]  
-          (run-handler handler event node) ))))
-
-(defn on-mouse-moved [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseMoved [this event node] 
-          (run-handler handler event node)))))
-
-(defn on-mouse-pressed [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mousePressed [this event node] 
-                      (try
-                        (run-handler handler event node)
-                        (catch Exception e
-                          (println "Exception in handler: " e)
-                          (.printStackTrace e)))))))
-
-(defn on-mouse-released [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseReleased [this event node] 
-          (run-handler handler event node) ))))
-
-(defn on-mouse-wheel-moved [node handler]
-  (.addMouseListener node
-      (reify SGMouseListener
-        (mouseWheelMoved [this event node] 
-          (run-handler handler event node)))))
+    (reify SGMouseListener
+      (mouseDragged [this event node]
+        (handle handlers :drag event node))
+      (mousePressed [this event node]
+        (handle handlers :press event node))
+      (mouseReleased [this event node]
+        (handle handlers :release event node))
+      (mouseClicked [this event node]
+        (handle handlers :click event node))
+      (mouseEntered [this event node]
+        (handle handlers :enter event node))
+      (mouseExited [this event node]
+        (handle handlers :exit event node))
+      (mouseMoved [this event node]
+        (handle handlers :move event node))
+      (mouseWheelMoved [this event node]
+        (handle handlers :wheel event node)))))
 
 (defn on-bounds-changed [node handler]
   (.addNodeListener node

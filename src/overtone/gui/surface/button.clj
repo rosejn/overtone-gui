@@ -25,12 +25,12 @@
                          (if handler
                            (handler @status))
                          (if @status
-                           (sg/fill-color back (fill-color @b-color))
+                           (sg/fill-color back (transparent-color @b-color))
                            (sg/fill-color back (get-color :background))))]
      (add-watch b-color (gensym "button-color")
        (fn [_ _ _ new-color]
          (if @status
-           (sg/fill-color back (fill-color new-color))
+           (sg/fill-color back (transparent-color new-color))
            (sg/fill-color back (get-color :background)))
          (sg/stroke-color box new-color)))
 
@@ -48,9 +48,9 @@
                                    BUTTON-SIZE BUTTON-SIZE
                                    BUTTON-CORNER BUTTON-CORNER)))
      (sg/add group back box)
-     
-     (sg/on-mouse-pressed back press-handler)
-     (sg/on-mouse-pressed box press-handler)
+
+     (sg/on-mouse group
+       :press press-handler)
 
      {:type :button
       :group group

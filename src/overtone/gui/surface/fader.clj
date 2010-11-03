@@ -52,15 +52,18 @@
                                             (/ FADER-CORNER-FADER-WIDTH 2)
                                             (/ FADER-CORNER-FADER-HEIGHT 2))))
 
+     (sg/add group box slide-tx handle-tx)
+
      (add-watch value (gensym "fader")
         (fn [_ _ _ new-val]
           (let [y  (- FADER-HEIGHT (* new-val FADER-HEIGHT))
                 hy (- (- FADER-HEIGHT handle-height)
-                      (* new-val (- FADER-HEIGHT handle-height))) ]
+                      (* new-val (- FADER-HEIGHT handle-height)))]
             (.setTranslateY handle-tx hy)
             (.setTranslateY slide-tx y)
-            (.setScaleY slide-scale new-val)
-            )))
+            (.setScaleY slide-scale new-val))))
+
+     (reset! value 0.8)
 
      (let [press-handler
            (fn [event]
@@ -79,12 +82,10 @@
                (reset! value val)
                (if handler
                  (handler val))))]
-       (sg/on-mouse-pressed handle press-handler)
-       (sg/on-mouse-pressed slide press-handler)
-       (sg/on-mouse-dragged handle drag-handler)
-       (sg/on-mouse-dragged slide drag-handler))
 
-     (sg/add group slide-tx handle-tx box)
+       (sg/on-mouse group 
+         :press press-handler
+         :drag  drag-handler))
 
      {:type :fader
       :group group

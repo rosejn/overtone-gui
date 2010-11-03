@@ -63,9 +63,8 @@
         surf (assoc surf
                     :frame frame
                     :panel panel
-                    :zoom zoom)
-        ctl-status (atom false)]
-    (sg/scene panel zoom)
+                    :zoom zoom)]
+    (sg/set-scene panel zoom)
 
     (doto frame
       (.add panel)
@@ -74,21 +73,19 @@
 
     (sg/on-key-pressed (:group surf)
       (fn [{:keys [key modifiers]}]
+        (println "key: " key modifiers)
         (cond
-          (= "Control" key)          ; ctl-down
-          (reset! ctl-status true)
-
-          (and (= "-" key)       ; zoom out
-               @ctl-status)
+          (and (= "Minus" key)       ; zoom out
+               (= "Ctrl" modifiers))
           (.scaleBy zoom 0.9 0.9)
 
-          (and (or (= "=" key)  ; zoom in
-                   (= "+" key))
-               @ctl-status)
+          (and (or (= "Equals" key)  ; zoom in
+                   (= "Plus" key))
+               (= "Ctrl" modifiers))
           (.scaleBy zoom 1.1 1.1)
 
           (and (= "e" key)
-               @ctl-status)
+               (= "Ctrl" modifiers))
           (swap! edit-mode-status not))))
 
     (add-watch edit-mode-status (gensym "surface-edit-mode")
