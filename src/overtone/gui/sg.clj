@@ -21,6 +21,7 @@
      AbstractGaussian Blend Bloom Brightpass ColorAdjust DropShadow
      Effect GaussianBlur Identity Merge Offset PhongLighting SepiaTone
      Shadow Glow Source SourceContent Blend$Mode Effect$AccelType)
+   (com.sun.scenario.animation Clip Timeline)
    (com.sun.scenario.effect.light
      DistantLight Light PointLight SpotLight Light$Type )
    (java.awt BasicStroke BorderLayout Color Point Dimension
@@ -141,6 +142,20 @@
 (defn translate
   [node tx ty]
   (SGTransform$Translate/createTranslation tx ty node))
+
+(defn animation
+  [node length property start end]
+  (Clip/create (long length) 1 node 
+               property (to-array [start end])))
+
+(defn animate
+  [& anims]
+  (if (= 1 (count anims))
+    (.start anims)
+    (let [timeline (Timeline.)]
+      (doseq [a anims]
+        (.schedule timeline a))
+      (.start timeline))))
 
 (def shape-mode-map {:fill        SGAbstractShape$Mode/FILL
                      :stroke      SGAbstractShape$Mode/STROKE

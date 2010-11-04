@@ -53,11 +53,12 @@
   [name width height]
   (let [frame (sg/frame name width height)
         panel (sg/panel width height)
-        surf  (surface-group {:type :surface
-                              :name name
-                              :width width
-                              :height height
-                              :widgets (atom #{})})
+        surf {:type :surface
+              :name name
+              :width width
+              :height height
+              :widgets (atom #{})}
+        surf  (surface-group surf)
         zoom (sg/scale (:group surf) 1 1)
         edit-mode-status (atom false)
         surf (assoc surf
@@ -73,7 +74,6 @@
 
     (sg/on-key-pressed (:group surf)
       (fn [{:keys [key modifiers]}]
-        (println "key: " key modifiers)
         (cond
           (and (= "Minus" key)       ; zoom out
                (= "Ctrl" modifiers))
@@ -112,7 +112,7 @@
                        :translate w-translate)]
      (sg/add group w-translate)
      (swap! widgets conj widget)
-     surface)))
+     widget)))
 
 (defn surface-remove-widget [surface widget]
   (let [{:keys [group widgets]} surface
