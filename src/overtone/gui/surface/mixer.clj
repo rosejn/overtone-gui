@@ -12,8 +12,8 @@
         low (dial)
         cut (button)]
     (doseq [d [hi mid low]]
-      (reset! (:color d) (sg/color 0 200 0)))
-    (reset! (:color cut) (sg/color 200 0 0))
+      (reset! (:color d) (get-color :stroke-2)))
+    (reset! (:color cut) (get-color :stroke-3))
     (surface-add-widget s vol x y)
     (surface-add-widget s hi  (+ 30 x) (+ 10 y))
     (surface-add-widget s mid (+ 30 x) (+ 60 y))
@@ -56,3 +56,19 @@
      ;  (.repaint))
      s)))
 
+(defn change-color [widget color] 
+  (println "color: " color)
+  (reset! (:color widget) color))
+
+(defn widgets-of-type [m w-type]
+  (filter #(= w-type (:type %)) @(:widgets m)))
+
+(defn set-widget-color [m w-type color]
+  (try
+    (doseq [w (widgets-of-type m w-type)]
+      (change-color w color))
+    (catch Exception e
+      (println "exception in set-widget-color: " e)
+      (println (.printStackTrace e)))))
+
+;(on-event :color-changed :mixer-color-change (fn [event] (set-widget-color m :button (:color event))))

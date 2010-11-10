@@ -30,7 +30,7 @@
    (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
                   CubicCurve2D$Double QuadCurve2D$Double
                   Rectangle2D$Double RoundRectangle2D$Double
-                  Arc2D Arc2D$Double Ellipse2D$Double)
+                  Arc2D Arc2D$Double Ellipse2D$Double AffineTransform)
    (java.awt.image.BufferedImage)
    (javax.swing JComponent JLabel JPanel JFrame JSlider JTabbedPane)
    (javax.swing.border.EmptyBorder)
@@ -142,6 +142,10 @@
 (defn translate
   [node tx ty]
   (SGTransform$Translate/createTranslation tx ty node))
+
+(defn affine
+  [node]
+  (SGTransform$Affine/createAffine (AffineTransform.) node))
 
 (defn animation
   [node length property start end]

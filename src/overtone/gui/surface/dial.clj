@@ -20,7 +20,6 @@
                                  -130 -200 :pie)
          center (sg/shape)
          value (atom 1.0)
-         last-y (atom 0)
          d-color (atom (get-color :stroke-1))]
      (doto ring
        (sg/anti-alias :on)
@@ -68,15 +67,14 @@
 
      (reset! value 0.5)
 
-     (let [press-handler
+     (let [last-y (atom 0)
+           press-handler
            (fn [event]
-             (println "press")
              (let [y (.getY event)]
                (reset! last-y y)))
 
            drag-handler
            (fn [event]
-             (println "drag")
              (let [cur-y (.getY event)
                    dy (- @last-y cur-y)
                    dv (if (.isShiftDown event)
@@ -88,7 +86,7 @@
                (if handler
                  (handler val))))]
 
-       (sg/on-mouse group 
+       (sg/on-mouse group
          :press press-handler
          :drag drag-handler))
 

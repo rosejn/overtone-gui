@@ -13,10 +13,15 @@
 (def color* (ref
               {:fill-1 (Color. 0 130 226 150)
                :stroke-1 (Color. 0 140 236)
+               :fill-2 (Color. 170 170 170 150)
+               :stroke-2 (Color. 170 170 170)
+               :fill-3 (Color.  0 130 236 150)
+               :stroke-3 (Color. 0 130 236)
                :background (Color. 40 40 40)
                :grid-lines (Color. 80 80 80)
                :current-color (Color. 0 130 226)
                :highlight (Color. 100 100 255)
+               :bounding-box (Color. 250 20 20 150)
 
                :node-bg (Color. 10 10 10)
                :text (Color. 200 200 200)
