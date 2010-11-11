@@ -68,7 +68,8 @@
           @(:widgets* s)))
 
 (defn select-intersecting-widgets [s rect]
-  (doseq [w (filter #(.intersects rect (.getBounds %)) @(:widgets* s))]
+  (doseq [w (filter #(.intersects rect (.getBounds (:affine %))) 
+                    @(:widgets* s))]
     (select-widget s w)))
 
 (defn surface
@@ -101,50 +102,56 @@
     (doto selection-box
       (sg/anti-alias :on)
       (sg/mode :stroke-fill)
-      (sg/stroke-color (color 255 255 255 150)) 
-      (sg/fill-color (color 255 255 255 50)) 
+      (sg/stroke-color (color 255 255 255 150))
+      (sg/fill-color (color 255 255 255 50))
       (sg/set-shape selection-rect)
       (.setVisible false))
 
-    (sg/add (:group surf) selection-box)
-
-    (let [press-handler 
+    (let [select-x* (atom 0)
+          select-y* (atom 0)
+          press-handler
            (fn [event]
              (when (= :edit @mode*)
-               (println "pressed")
                (let [x (.getX event)
                      y (.getY event)]
+                 (sg/add (:group surf) selection-box)
                  (.setRect selection-rect x y 1 1)
                  (sg/set-shape selection-box selection-rect)
-                 (.setVisible selection-box true))))
+                 (.setVisible selection-box true)
+                 (reset! select-x* x)
+                 (reset! select-y* y))))
 
           click-handler
            (fn [event]
              (when (= :edit @mode*)
-               (println "clicked...")
-                   (if (not (.isShiftDown event))
-                     (deselect-all-widgets surface))))
+               (if (not (.isShiftDown event))
+                 (deselect-all-widgets surf))))
 
            drag-handler
            (fn [event]
              (when (= :edit @mode*)
-               (println "dragged")
                (let [x (.getX event)
                      y (.getY event)
-                     p1 (sg/point (.getX selection-rect)
-                                  (.getY selection-rect))
-                     p2 (sg/point x y)]
-                 (.setFrameFromDiagonal selection-rect p1 p2)
+                     rect-x (min x @select-x*)
+                     rect-y (min y @select-y*)
+                     width (- (max x @select-x*) rect-x)
+                     height (- (max y @select-y*) rect-y)]
+                 (println "rect: [" rect-x "," rect-y "] - w: " width " h: " height)
+                 (.setRect selection-rect rect-x rect-y width height)
                  (sg/set-shape selection-box selection-rect))))
-          
+
           release-handler
            (fn [event]
-             (println "released")
              (when (= :edit @mode*)
                (.setVisible selection-box false)
-               (if (not (.isShiftDown event))
-                 (deselect-all-widgets surface))
-               (select-intersecting-widgets surf selection-rect)))]
+               (sg/remove (:group surf) selection-box)
+               (try 
+                 (if (not (.isShiftDown event))
+                   (deselect-all-widgets surf))
+                 (select-intersecting-widgets surf selection-rect)
+                 (catch Exception e
+                   (println "exception: " e)
+                   (println (.printStackTrace e))))))]
 
        (sg/on-mouse (:group surf)
                     :click click-handler
