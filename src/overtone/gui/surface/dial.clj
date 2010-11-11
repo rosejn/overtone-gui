@@ -26,7 +26,7 @@
        (sg/mode :stroke)
        (sg/stroke-style 1.5)
        (sg/stroke-color @d-color)
-       (sg/set-shape (sg/arc 0 0 DIAL-SIZE DIAL-SIZE -130 -280 :open)))
+       (sg/set-shape (sg/arc 0 0 DIAL-SIZE DIAL-SIZE -130 -280 :pie)))
      (doto back-fill
        (sg/anti-alias :on)
        (sg/mode :fill)

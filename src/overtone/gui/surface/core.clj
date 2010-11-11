@@ -19,7 +19,7 @@
       (sg/line-to grid-path width y))
     grid-path))
 
-(defn- surface-group [surface]
+(defn- with-surface-group [surface]
   (let [{:keys [name width height]} surface
         group (sg/group)
         background (sg/shape)
@@ -49,6 +49,20 @@
 (defn surface-mode [s mode]
   (reset! (:mode* s) mode))
 
+(defn select-widget [s widget]
+  (reset! (:selected?* widget) true))
+
+(defn deselect-widget [s widget]
+  (reset! (:selected?* widget) false))
+
+(defn deselect-all-widgets [s]
+  (doseq [w @(:widgets* s)]
+    (deselect-widget s w)))
+
+(defn selected-widgets [s]
+  (filter (fn [widget] @(:selected?* widget)) 
+          @(:widgets* s)))
+
 (defn surface
   [name width height]
   (let [frame (sg/frame name width height)
@@ -58,11 +72,11 @@
               :width width
               :height height
               :widgets* (atom #{})}
-        surf  (surface-group surf)
+        surf  (with-surface-group surf)
         zoom (sg/scale (:group surf) 1 1)
         mode* (atom :active)
         surf (assoc surf
-                    :mode mode*
+                    :mode* mode*
                     :frame frame
                     :panel panel
                     :zoom zoom)]
@@ -72,6 +86,21 @@
       (.add panel)
       (.pack)
       (.show))
+
+    (let [press-handler
+           (fn [event]
+             (when (= :edit @(:mode* surface))
+                   (if (not (.isShiftDown event))
+                     (deselect-all-widgets surface))))
+
+           drag-handler
+           (fn [event]
+             (when (= :edit @(:mode* surface))
+               ; TODO: maybe allow dragging the surface like google maps to translate across regions?
+               nil
+                 ))]
+       (sg/on-mouse (:group surf)
+                    :press press-handler))
 
     (sg/on-key-pressed (:group surf)
       (fn [{:keys [key modifiers]}]
@@ -86,15 +115,10 @@
           (.scaleBy zoom 1.1 1.1)
 
           (= "E" key)
-          (reset! mode* (if (= :edit @mode*)
-                          :active
-                          :edit)))))
+          (if (= :edit @mode*)
+            (surface-mode surf :active)
+            (surface-mode surf :edit)))))
     surf))
-
-(defn select-widget [s widget]
-  (doseq [w @(:widgets s)]
-    (reset! (:selected? widget) false))
-  (reset! (:selected? widget) true))
 
 (defn surface-add-widget
   "Add a control widget to a surface, optionally specifying the
@@ -110,7 +134,7 @@
          bounding-box (sg/shape)
          widget (assoc widget
                        :affine affine
-                       :selected? (atom false)
+                       :selected?* (atom false)
                        :bounding-box bounding-box)]
      (.transformBy affine (AffineTransform/getTranslateInstance (double x) (double y)))
 
@@ -121,44 +145,61 @@
                                    (.getHeight bounds)))
        (sg/mode :stroke)
        (sg/stroke-color (get-color :bounding-box))
-       (sg/stroke-style 2)
+       (sg/stroke-style 0.5)
        (.setVisible false))
 
      (sg/add (:group widget) bounding-box)
-     (add-watch (:selected? widget) (gensym "widget/selected?")
+     (add-watch (:selected?* widget) (gensym "widget/selected?*")
                 (fn [_ _ _ selected?]
                   (.setVisible bounding-box selected?)))
+
+     (add-watch (:mode* surface) (gensym "widget/edit-mode")
+       (fn [_ _ _ mode]
+         (println "surface-mode: " mode)
+         (if (= :edit mode)
+           (.setMouseBlocker affine true)
+           (.setMouseBlocker affine false))))
 
      (let [last-x* (atom 0)
            last-y* (atom 0)
            press-handler
            (fn [event]
-             (println "press..." @(:mode surface))
-             (when (= :edit @(:mode surface))
-               (println "edit select")
+             (when (= :edit @(:mode* surface))
                (let [x (.getX event)
                      y (.getY event)]
-                 (select-widget widget)
+                 (try 
+                   (if (.isShiftDown event)
+                     (select-widget surface widget)
+                     (do
+                       (deselect-all-widgets surface)
+                       (select-widget surface widget)))
+                   (catch Exception e 
+                     (println "select-widget exception: " e)
+                     (println (.printStackTrace e))))
 
                  (reset! last-x* x)
                  (reset! last-y* y))))
 
            drag-handler
            (fn [event]
-             (println "drag..." @(:mode surface))
-             (when (= :edit @(:mode surface))
-                 (println "edit drag")
+             (when (= :edit @(:mode* surface))
                  (let [cur-x (.getX event)
                        dx (- cur-x @last-x*)
                        cur-y (.getY event)
                        dy (- cur-y @last-y*)]
-                   (.transformBy affine
-                                 (AffineTransform/getTranslateInstance (double dx) 
-                                                                       (double dy)))
+                   (try
+                     (doseq [w (selected-widgets surface)]
+                       (.transformBy (:affine w)
+                                     (AffineTransform/getTranslateInstance (double dx)
+                                                                           (double dy))))
+                   (catch Exception e 
+                     (println "move-widgets exception: " e)
+                     (println (.printStackTrace e))))
+
                    (reset! last-x* cur-x)
                    (reset! last-y* cur-y))))]
 
-       (sg/on-mouse group
+       (sg/on-mouse affine
                     :press press-handler
                     :drag drag-handler))
 

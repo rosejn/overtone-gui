@@ -22,7 +22,7 @@
          handle-tx (sg/translate handle 0 0)
          slide (sg/shape)
          slide-scale (sg/scale slide 1 (/ (- FADER-HEIGHT handle-height) FADER-HEIGHT))
-         slide-tx (sg/translate slide-scale 1 handle-height)
+         slide-tx (sg/translate slide-scale 0 handle-height)
          value (atom 0.8)
          last-y (atom 0)]
      (doto box
@@ -83,7 +83,7 @@
                (if handler
                  (handler val))))]
 
-       (sg/on-mouse group 
+       (sg/on-mouse group
          :press press-handler
          :drag  drag-handler))
 
