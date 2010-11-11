@@ -26,16 +26,20 @@
         grid (sg/shape)
         grid-path (grid-lines width height)]
 
+    ; TODO: Figure out how to have a seemingly infinite background
     (doto background
       (sg/mode :fill)
       (sg/fill-color (get-color :background))
-      (sg/set-shape (sg/rectangle 0.0 0.0 width height)))
+      (sg/set-shape (sg/rectangle 0 0 width height)))
+      ;(* -2.0 width) (* -2.0 height)
+      ;(* 2.0 width) (* 2.0 height))))
 
     (doto grid
       (sg/set-shape grid-path)
       (sg/anti-alias :on)
       (sg/mode :stroke)
-      (sg/stroke-color (get-color :grid-lines)))
+      (sg/stroke-color (get-color :grid-lines))
+      (.setVisible false))
 
     (sg/add group
             background
@@ -60,8 +64,12 @@
     (deselect-widget s w)))
 
 (defn selected-widgets [s]
-  (filter (fn [widget] @(:selected?* widget)) 
+  (filter (fn [widget] @(:selected?* widget))
           @(:widgets* s)))
+
+(defn select-intersecting-widgets [s rect]
+  (doseq [w (filter #(.intersects rect (.getBounds %)) @(:widgets* s))]
+    (select-widget s w)))
 
 (defn surface
   [name width height]
@@ -73,33 +81,75 @@
               :height height
               :widgets* (atom #{})}
         surf  (with-surface-group surf)
-        zoom (sg/scale (:group surf) 1 1)
+        affine (sg/affine (:group surf))
         mode* (atom :active)
+        selection-box (sg/shape)
+        selection-rect (sg/rectangle 0 0 0 0)
         surf (assoc surf
                     :mode* mode*
                     :frame frame
                     :panel panel
-                    :zoom zoom)]
-    (sg/set-scene panel zoom)
+                    :selection-box selection-box
+                    :affine affine)]
+    (sg/set-scene panel affine)
 
     (doto frame
       (.add panel)
       (.pack)
       (.show))
 
-    (let [press-handler
+    (doto selection-box
+      (sg/anti-alias :on)
+      (sg/mode :stroke-fill)
+      (sg/stroke-color (color 255 255 255 150)) 
+      (sg/fill-color (color 255 255 255 50)) 
+      (sg/set-shape selection-rect)
+      (.setVisible false))
+
+    (sg/add (:group surf) selection-box)
+
+    (let [press-handler 
            (fn [event]
-             (when (= :edit @(:mode* surface))
+             (when (= :edit @mode*)
+               (println "pressed")
+               (let [x (.getX event)
+                     y (.getY event)]
+                 (.setRect selection-rect x y 1 1)
+                 (sg/set-shape selection-box selection-rect)
+                 (.setVisible selection-box true))))
+
+          click-handler
+           (fn [event]
+             (when (= :edit @mode*)
+               (println "clicked...")
                    (if (not (.isShiftDown event))
                      (deselect-all-widgets surface))))
 
            drag-handler
            (fn [event]
-             (when (= :edit @(:mode* surface))
-               ; TODO: maybe allow dragging the surface like google maps to translate across regions?
-               nil
-                 ))]
+             (when (= :edit @mode*)
+               (println "dragged")
+               (let [x (.getX event)
+                     y (.getY event)
+                     p1 (sg/point (.getX selection-rect)
+                                  (.getY selection-rect))
+                     p2 (sg/point x y)]
+                 (.setFrameFromDiagonal selection-rect p1 p2)
+                 (sg/set-shape selection-box selection-rect))))
+          
+          release-handler
+           (fn [event]
+             (println "released")
+             (when (= :edit @mode*)
+               (.setVisible selection-box false)
+               (if (not (.isShiftDown event))
+                 (deselect-all-widgets surface))
+               (select-intersecting-widgets surf selection-rect)))]
+
        (sg/on-mouse (:group surf)
+                    :click click-handler
+                    :drag  drag-handler
+                    :release release-handler
                     :press press-handler))
 
     (sg/on-key-pressed (:group surf)
@@ -107,12 +157,12 @@
         (cond
           (and (= "Minus" key)       ; zoom out
                (= "Ctrl" modifiers))
-          (.scaleBy zoom 0.9 0.9)
+          (.transformBy affine (AffineTransform/getScaleInstance 0.9 0.9))
 
           (and (or (= "Equals" key)  ; zoom in
                    (= "Plus" key))
                (= "Ctrl" modifiers))
-          (.scaleBy zoom 1.1 1.1)
+          (.transformBy affine (AffineTransform/getScaleInstance 1.1 1.1))
 
           (= "E" key)
           (if (= :edit @mode*)
@@ -155,8 +205,8 @@
 
      (add-watch (:mode* surface) (gensym "widget/edit-mode")
        (fn [_ _ _ mode]
-         (println "surface-mode: " mode)
-         (if (= :edit mode)
+         nil
+         (comment if (= :edit mode)
            (.setMouseBlocker affine true)
            (.setMouseBlocker affine false))))
 
@@ -167,13 +217,13 @@
              (when (= :edit @(:mode* surface))
                (let [x (.getX event)
                      y (.getY event)]
-                 (try 
+                 (try
                    (if (.isShiftDown event)
                      (select-widget surface widget)
                      (do
                        (deselect-all-widgets surface)
                        (select-widget surface widget)))
-                   (catch Exception e 
+                   (catch Exception e
                      (println "select-widget exception: " e)
                      (println (.printStackTrace e))))
 
@@ -192,7 +242,7 @@
                        (.transformBy (:affine w)
                                      (AffineTransform/getTranslateInstance (double dx)
                                                                            (double dy))))
-                   (catch Exception e 
+                   (catch Exception e
                      (println "move-widgets exception: " e)
                      (println (.printStackTrace e))))
 

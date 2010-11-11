@@ -33,6 +33,10 @@
 (defn get-color [tag]
   (get @color* tag (:current-color @color*)))
 
+(defn color 
+  ([r g b] (Color. r g b))
+  ([r g b a] (Color. r g b a)))
+
 (defn transparent-color
   "Create a fill color from a corresponding stroke color."
   [col]
