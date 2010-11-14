@@ -36,12 +36,12 @@
                                   MONOME-BUTTON-SIZE MONOME-BUTTON-SIZE
                                   MONOME-CORNER MONOME-CORNER)))
 
-    (add-watch color (gensym "monome-color")
-               (fn [_ _ _ new-color]
-                 (if @status
-                   (sg/fill-color back (transparent-color new-color))
-                   (sg/fill-color back (get-color :background)))
-                 (sg/stroke-color box new-color)))
+    (sg/observe color
+      (fn [new-color]
+        (if @status
+          (sg/fill-color back (transparent-color new-color))
+          (sg/fill-color back (get-color :background)))
+        (sg/stroke-color box new-color)))
 
     (doto box
       (sg/anti-alias :on)

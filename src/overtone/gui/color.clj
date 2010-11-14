@@ -33,9 +33,29 @@
 (defn get-color [tag]
   (get @color* tag (:current-color @color*)))
 
-(defn color 
+(defn color
   ([r g b] (Color. r g b))
   ([r g b a] (Color. r g b a)))
+
+(defn shift
+  "Shifts a color by a amount."
+  ([color amount] 
+   (let [{:keys [red green blue]} (bean color)]
+   (Color. (max 0 (+ red amount))
+           (max 0 (+ green amount))
+           (max 0 (+ blue amount))))))
+
+(defn darken
+  "Darken a color in steps of -10 for each of r, g, and b."
+  ([color] (darken color 1))
+  ([color factor] 
+   (shift color (* factor -10))))
+
+(defn lighten
+  "Darken a color in steps of -10 for each of r, g, and b."
+  ([color] (lighten color 1))
+  ([color factor] 
+   (shift color (* factor 10))))
 
 (defn transparent-color
   "Create a fill color from a corresponding stroke color."

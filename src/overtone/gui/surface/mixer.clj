@@ -22,7 +22,7 @@
     s))
 
 (def MIXER-WIDTH 550)
-(def MIXER-HEIGHT 230)
+(def MIXER-HEIGHT 260)
 
 (defn flip-coin []
   (zero? (rand-int 2)))
@@ -36,28 +36,36 @@
         btn (surface-add-widget s (button) x y)
         anim-x (sg/animation (:translate btn) 300 "TranslateX" x cx)
         anim-y (sg/animation (:translate btn) 300 "TranslateY" y cy)]
-    (println "x: " x "y: " y)
-    (println "cx: " cx "cy: " cy)
+    ;(println "x: " x "y: " y)
+    ;(println "cx: " cx "cy: " cy)
     (sg/animate anim-x anim-y)))
 
-(defn mixer
-  ([] (mixer MIXER-WIDTH MIXER-HEIGHT))
-  ([width height]
+(defn mixer*
+  [width height]
+   (try 
    (let [s (surface "Mixer" width height)]
      (dotimes [i 4]
        (add-mixer-channel s (+ 20 (* i 80)) 10))
      (surface-add-widget s (monome 4 4) 350 20)
      (sg/on-key-pressed (:group s)
        (fn [{:keys [key modifiers]}]
-        (println "key: " key modifiers)
+        ;(println "key: " key modifiers)
          (cond
            (= "B" key) (add-button s))))
-     ;(doto (:frame s)
-     ;  (.repaint))
-     s)))
+     s)
+     (catch Exception e
+       (println "Error: " e)
+       (.printStackTrace e))))
 
-(defn change-color [widget color] 
-  (println "color: " color)
+(defn mixer
+  ([] (mixer MIXER-WIDTH MIXER-HEIGHT))
+  ([width height] 
+   (let [p (promise)]
+     (sg/in-swing (deliver p (mixer* width height)))
+     @p)))
+
+(defn change-color [widget color]
+  ;(println "color: " color)
   (reset! (:color widget) color))
 
 (defn widgets-of-type [m w-type]

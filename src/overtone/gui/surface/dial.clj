@@ -47,8 +47,8 @@
                              (/ DIAL-SIZE 2)
                              (/ DIAL-SIZE 2)
                              0 360 :open)))
-     (add-watch value (gensym "dial")
-        (fn [_ _ _ new-val]
+     (sg/observe value
+        (fn [new-val]
           (let [angle (- (* new-val 280))]
             (.setAngleExtent fill-arc angle)
             (sg/set-shape front-fill fill-arc))))
@@ -59,8 +59,8 @@
              front-fill
              center)
 
-     (add-watch d-color (gensym "dial-color")
-       (fn [_ _ _ new-color]
+     (sg/observe d-color
+       (fn [new-color]
          (sg/stroke-color ring new-color)
          (sg/fill-color back-fill (transparent-color new-color))
          (sg/fill-color front-fill new-color)))

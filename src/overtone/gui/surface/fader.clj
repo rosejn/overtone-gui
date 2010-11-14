@@ -27,8 +27,9 @@
          last-y (atom 0)]
      (doto box
        (sg/anti-alias :on)
-       (sg/mode :stroke)
+       (sg/mode :stroke-fill)
        (sg/stroke-color (get-color :stroke-1))
+       (sg/fill-color (get-color :background))
        (sg/set-shape (sg/round-rectangle 0 0 FADER-WIDTH FADER-HEIGHT
                                             FADER-CORNER-FADER-WIDTH
                                             FADER-CORNER-FADER-HEIGHT)))
@@ -53,9 +54,10 @@
                                             (/ FADER-CORNER-FADER-HEIGHT 2))))
 
      (sg/add group box slide-tx handle-tx)
+     (sg/block-mouse group true)
 
-     (add-watch value (gensym "fader")
-        (fn [_ _ _ new-val]
+     (sg/observe value
+        (fn [new-val]
           (let [y  (- FADER-HEIGHT (* new-val FADER-HEIGHT))
                 hy (- (- FADER-HEIGHT handle-height)
                       (* new-val (- FADER-HEIGHT handle-height)))]

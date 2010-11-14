@@ -27,11 +27,11 @@
                          (if @status
                            (sg/fill-color back (transparent-color @b-color))
                            (sg/fill-color back (get-color :background))))]
-     (add-watch b-color (gensym "button-color")
-       (fn [_ _ _ new-color]
+     (sg/observe b-color
+       (fn [new-color]
          (if @status
-           (sg/fill-color back (transparent-color new-color))
-           (sg/fill-color back (get-color :background)))
+          (sg/fill-color back (transparent-color new-color))
+          (sg/fill-color back (get-color :background)))
          (sg/stroke-color box new-color)))
 
      (doto back

@@ -1,5 +1,6 @@
 (ns
-  ^{:doc "Swing helper functions"
+  ^{:doc "Deprecated: creating a unified gui library in overtone.gui.core, go there.
+         Swing helper functions"
      :author "Fabian Aussems & Jeff Rose"}
   overtone.gui.swing
   (:import (clojure.lang RT)
@@ -7,14 +8,11 @@
            (java.awt.event ActionListener)
            (javax.swing.text TextAction JTextComponent)
            (javax.swing JFrame JPanel JSplitPane JLabel
-                        JButton SwingUtilities BorderFactory
-                        ImageIcon KeyStroke JOptionPane))
+                        JButton BorderFactory ImageIcon
+                        KeyStroke JOptionPane))
   (:use clojure.stacktrace
         [clojure.contrib swing-utils]
         [overtone util]))
-
-(defmacro in-swing [& body]
-  `(SwingUtilities/invokeLater (fn [] ~@body)))
 
 (defn resource-url [path]
   (.getResource (RT/baseLoader) path))
@@ -40,19 +38,6 @@
      (.setToolTipText tooltip)
      (add-action-listener (fn [event]
                             (run-handler handler event))))))
-
-(defn screen-dim []
-  (.getScreenSize (Toolkit/getDefaultToolkit)))
-
-(defn screen-size []
-  (let [dim (screen-dim)]
-    [(.width dim) (.height dim)]))
-
-;TODO: Fix me
-; It undecorates, but it doesn't seem to change the size of the frame...
-(defn fullscreen-frame [f]
-    (.setExtendedState f JFrame/MAXIMIZED_BOTH)
-    (.setUndecorated f true))
 
 ; API not supported yet
 ;(Desktop/browse my-uri)

@@ -4,7 +4,8 @@
   overtone.gui.surface.core
   (:use
     [overtone event]
-    [overtone.gui color])
+    [overtone.gui color]
+    clojure.contrib.repl-utils)
   (:require [overtone.gui.sg :as sg])
   (:import [java.awt.geom AffineTransform]))
 
@@ -39,7 +40,7 @@
       (sg/anti-alias :on)
       (sg/mode :stroke)
       (sg/stroke-color (get-color :grid-lines))
-      (.setVisible false))
+      (sg/visible false))
 
     (sg/add group
             background
@@ -68,9 +69,40 @@
           @(:widgets* s)))
 
 (defn select-intersecting-widgets [s rect]
-  (doseq [w (filter #(.intersects rect (.getBounds (:affine %))) 
+  (doseq [w (filter #(.intersects rect (.getBounds (:affine %)))
                     @(:widgets* s))]
     (select-widget s w)))
+
+(defn- with-edit-bar [{:keys [mode* group width] :as s}]
+  (let [background (sg/shape (sg/rectangle 0 0 width 30))
+        bar-group  (sg/group)
+        name-lbl   (sg/text "Name: ")
+        name-tx    (sg/translate name-lbl 10 23)
+        name-input (sg/text-input :columns 15)
+        input-tx   (sg/translate name-input 65 5)
+        x-lbl (sg/text "x: --")
+        x-tx  (sg/translate x-lbl 300 23)
+        y-lbl (sg/text "y: --")
+        y-tx  (sg/translate y-lbl 370 23)]
+    (doto background
+      (sg/mode :fill)
+      (sg/fill-color (darken (get-color :background) 1)))
+    (doseq [node [name-lbl x-lbl y-lbl]]
+      (doto node
+        (sg/set-font "SansSerif" 12 :bold)
+        (sg/mode :fill)
+        (sg/fill-color (get-color :text))))
+    (sg/add bar-group
+            background
+            name-tx input-tx
+            x-tx y-tx)
+    (sg/add group bar-group)
+
+    (comment (fn [{:keys [widget]}]
+                (sg/set-text x-lbl (str "x: " (.getX (:group widget))))
+                (sg/set-text y-lbl (str "y: " (.getY (:group widget))))))
+
+    (assoc s :edit-bar bar-group)))
 
 (defn surface
   [name width height]
@@ -91,13 +123,10 @@
                     :frame frame
                     :panel panel
                     :selection-box selection-box
-                    :affine affine)]
+                    :affine affine
+                    :selected #{})
+        surf (with-edit-bar surf)]
     (sg/set-scene panel affine)
-
-    (doto frame
-      (.add panel)
-      (.pack)
-      (.show))
 
     (doto selection-box
       (sg/anti-alias :on)
@@ -105,59 +134,55 @@
       (sg/stroke-color (color 255 255 255 150))
       (sg/fill-color (color 255 255 255 50))
       (sg/set-shape selection-rect)
-      (.setVisible false))
+      (sg/visible false))
 
     (let [select-x* (atom 0)
           select-y* (atom 0)
           press-handler
-           (fn [event]
-             (when (= :edit @mode*)
-               (let [x (.getX event)
-                     y (.getY event)]
-                 (sg/add (:group surf) selection-box)
-                 (.setRect selection-rect x y 1 1)
-                 (sg/set-shape selection-box selection-rect)
-                 (.setVisible selection-box true)
-                 (reset! select-x* x)
-                 (reset! select-y* y))))
+          (fn [event]
+            (.requestFocus (:group surf))
+            (when (= :edit @mode*)
+              (let [x (.getX event)
+                    y (.getY event)]
+                (sg/add (:group surf) selection-box)
+                (.setRect selection-rect x y 1 1)
+                (sg/set-shape selection-box selection-rect)
+                (sg/visible selection-box true)
+                (reset! select-x* x)
+                (reset! select-y* y))))
 
           click-handler
-           (fn [event]
-             (when (= :edit @mode*)
-               (if (not (.isShiftDown event))
-                 (deselect-all-widgets surf))))
+          (fn [event]
+            (when (= :edit @mode*)
+              (if (not (.isShiftDown event))
+                (deselect-all-widgets surf))))
 
-           drag-handler
-           (fn [event]
-             (when (= :edit @mode*)
-               (let [x (.getX event)
-                     y (.getY event)
-                     rect-x (min x @select-x*)
-                     rect-y (min y @select-y*)
-                     width (- (max x @select-x*) rect-x)
-                     height (- (max y @select-y*) rect-y)]
-                 (println "rect: [" rect-x "," rect-y "] - w: " width " h: " height)
-                 (.setRect selection-rect rect-x rect-y width height)
-                 (sg/set-shape selection-box selection-rect))))
+          drag-handler
+          (fn [event]
+            (when (= :edit @mode*)
+              (let [x (.getX event)
+                    y (.getY event)
+                    rect-x (min x @select-x*)
+                    rect-y (min y @select-y*)
+                    width (- (max x @select-x*) rect-x)
+                    height (- (max y @select-y*) rect-y)]
+                ;(println "rect: [" rect-x "," rect-y "] - w: " width " h: " height)
+                (.setRect selection-rect rect-x rect-y width height)
+                (sg/set-shape selection-box selection-rect))))
 
           release-handler
-           (fn [event]
-             (when (= :edit @mode*)
-               (.setVisible selection-box false)
-               (sg/remove (:group surf) selection-box)
-               (try 
-                 (if (not (.isShiftDown event))
-                   (deselect-all-widgets surf))
-                 (select-intersecting-widgets surf selection-rect)
-                 (catch Exception e
-                   (println "exception: " e)
-                   (println (.printStackTrace e))))))]
+          (fn [event]
+            (when (= :edit @mode*)
+              (println "background release...")
+              (sg/visible selection-box false)
+              (sg/remove (:group surf) selection-box)
+              (select-intersecting-widgets surf selection-rect)))]
 
-       (sg/on-mouse (:group surf)
-                    :click click-handler
-                    :drag  drag-handler
-                    :release release-handler
-                    :press press-handler))
+      (sg/on-mouse (:group surf)
+                   :click click-handler
+                   :drag  drag-handler
+                   :release release-handler
+                   :press press-handler))
 
     (sg/on-key-pressed (:group surf)
       (fn [{:keys [key modifiers]}]
@@ -175,7 +200,14 @@
           (if (= :edit @mode*)
             (surface-mode surf :active)
             (surface-mode surf :edit)))))
+    (doto frame
+      (.add panel)
+      (.pack)
+      (.show))
+
     surf))
+
+(def EDIT-PADDING 35)
 
 (defn surface-add-widget
   "Add a control widget to a surface, optionally specifying the
@@ -185,7 +217,8 @@
   ([surface widget x y]
    (surface-add-widget surface widget x y 1.0))
   ([surface widget x y scale-factor]
-   (let [{:keys [group widgets]} surface
+   (let [y (+ y EDIT-PADDING)
+         {:keys [group widgets]} surface
          affine (sg/affine (:group widget))
          bounds (.getBounds (:group widget))
          bounding-box (sg/shape)
@@ -193,29 +226,22 @@
                        :affine affine
                        :selected?* (atom false)
                        :bounding-box bounding-box)]
-     (.transformBy affine (AffineTransform/getTranslateInstance (double x) (double y)))
 
+     (.transformBy affine (AffineTransform/getTranslateInstance (double x) (double y)))
      (doto bounding-box
        (sg/set-shape (sg/rectangle (.getX bounds)
                                    (.getY bounds)
                                    (.getWidth bounds)
                                    (.getHeight bounds)))
-       (sg/mode :stroke)
-       (sg/stroke-color (get-color :bounding-box))
-       (sg/stroke-style 0.5)
-       (.setVisible false))
+       (sg/mode :fill)
+       (sg/fill-color (color 255 255 255 100))
+       (sg/visible false))
 
      (sg/add (:group widget) bounding-box)
-     (add-watch (:selected?* widget) (gensym "widget/selected?*")
-                (fn [_ _ _ selected?]
-                  (.setVisible bounding-box selected?)))
-
-     (add-watch (:mode* surface) (gensym "widget/edit-mode")
-       (fn [_ _ _ mode]
-         nil
-         (comment if (= :edit mode)
-           (.setMouseBlocker affine true)
-           (.setMouseBlocker affine false))))
+     (sg/observe (:selected?* widget) (fn [selected?]
+                                        (doto bounding-box 
+                                          (sg/visible selected?)
+                                          (sg/block-mouse selected?))))
 
      (let [last-x* (atom 0)
            last-y* (atom 0)
@@ -256,9 +282,8 @@
                    (reset! last-x* cur-x)
                    (reset! last-y* cur-y))))]
 
-       (sg/on-mouse affine
-                    :press press-handler
-                    :drag drag-handler))
+       (sg/on-mouse affine :press press-handler)
+       (sg/on-mouse bounding-box :drag drag-handler))
 
      (sg/add group affine)
 

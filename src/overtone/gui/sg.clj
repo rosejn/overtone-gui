@@ -1,11 +1,12 @@
 (ns overtone.gui.sg
-  ^{:doc "A scenegraph based gui API for Overtone."
+  ^{:doc "A gui library using swing and a 2D scenegraph for Overtone."
      :author "Fabian Aussems & Jeff Rose"}
   (:refer-clojure :exclude [remove])
   (:use [overtone util event]
         [clojure.contrib.str-utils2 :only (capitalize)])
   (:import
-   (com.sun.scenario.scenegraph
+    (clojure.lang RT)
+    (com.sun.scenario.scenegraph
      JSGPanel ProportionalPaint SGAbstractGeometry SGAbstractShape
      SGAbstractShape$Mode SGAlignment SGArc SGCircle SGClip SGComponent
      SGComposite SGCubicCurve SGEffect SGEllipse SGEmbeddedToolkit
@@ -25,16 +26,41 @@
    (com.sun.scenario.effect.light
      DistantLight Light PointLight SpotLight Light$Type )
    (java.awt BasicStroke BorderLayout Color Point Dimension
-             Font Insets RenderingHints Shape)
+             Font Insets RenderingHints Shape 
+             Toolkit GraphicsEnvironment)
    (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter)
    (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
                   CubicCurve2D$Double QuadCurve2D$Double
                   Rectangle2D$Double RoundRectangle2D$Double
                   Arc2D Arc2D$Double Ellipse2D$Double AffineTransform)
    (java.awt.image.BufferedImage)
-   (javax.swing JComponent JLabel JPanel JFrame JSlider JTabbedPane)
+   (javax.swing SwingUtilities JComponent JFrame JPanel JTabbedPane
+                JTextField JLabel ImageIcon JSlider)
    (javax.swing.border.EmptyBorder)
    (javax.swing.event ChangeEvent ChangeListener)))
+
+(def DEFAULT-INPUT-COLS 12)
+
+(defmacro in-swing [& body]
+  `(SwingUtilities/invokeLater (fn [] ~@body)))
+
+(defn observe [ref handler]
+  (add-watch ref (gensym "sg/watch")
+    (fn [_ _ _ new-val]
+      (in-swing (run-handler handler new-val)))))
+
+(defn screen-dim []
+  (.getScreenSize (Toolkit/getDefaultToolkit)))
+
+(defn screen-size []
+  (let [dim (screen-dim)]
+    [(.width dim) (.height dim)]))
+
+;TODO: Fix me
+; It undecorates, but it doesn't seem to change the size of the frame...
+(defn fullscreen-frame [f]
+    (.setExtendedState f JFrame/MAXIMIZED_BOTH)
+    (.setUndecorated f true))
 
 (defn frame
   ([name]
@@ -52,28 +78,6 @@
 (defn set-scene [panel scene]
   (.setScene panel scene))
 
-(defn group
-  "Create a scenegraph group node."
-  []
-  (SGGroup.))
-
-(defn set-shape
-  "Set the 2D shape of a scenegraph shape node."
-  [node shape]
-  (.setShape node shape))
-
-(defn shape
-  "Create a scenegraph shape node."
-  ([] (SGShape.))
-  ([path]
-   (let [s (SGShape.)]
-     (set-shape s path))))
-
-(defn text
-  "Create a text scenegraph node."
-  []
-  (SGText.))
-
 (defn add
   "Add nodes to a scenegraph group."
   [group & nodes]
@@ -85,6 +89,90 @@
   [group & nodes]
   (doseq [node nodes]
     (.remove group node)))
+
+(defn group
+  "Create a scenegraph group node."
+  []
+  (SGGroup.))
+
+(defn set-shape
+  "Set the 2D shape of a scenegraph shape node."
+  [node shape]
+  (.setShape node shape))
+
+(defn block-mouse
+  "Set true if you want to stop mouse events from propagating below this node.
+  NOTE: must be a filled shape."
+  [node blocked?]
+  (.setMouseBlocker node blocked?))
+
+(defn visible
+  "Turn a node on or off."
+  [node val]
+  (.setVisible node val))
+
+(defn shape
+  "Create a scenegraph shape node."
+  ([] (SGShape.))
+  ([path]
+   (let [s (SGShape.)]
+     (set-shape s path)
+     s)))
+
+(defn set-text
+  "Set the text string on a text node."
+  [node text]
+  (.setText node text))
+
+(defn text
+  "Create a text scenegraph node."
+  ([] (text ""))
+  ([txt]
+   (doto (SGText.)
+     (set-text txt))))
+
+(defn text-input
+  "Create a text input node."
+  ([] (text-input {}))
+  ([& {:as options}]
+   (let [text (get options :text "")
+         columns (get options :columns DEFAULT-INPUT-COLS)]
+     (doto (SGComponent.)
+       (.setComponent (JTextField. text columns))))))
+
+(defn fonts
+  "Returns the names of all available fonts."
+  []
+  (seq (.getAvailableFontFamilyNames
+    (GraphicsEnvironment/getLocalGraphicsEnvironment))))
+
+(def FONT-STYLES
+  {:plain Font/PLAIN
+   :bold  Font/BOLD
+   :italic Font/ITALIC})
+
+(defn font
+  ([name] (font name 12 :plain))
+  ([name size] (font name size :plain))
+  ([name size style]
+   (let [style (if (keyword? style)
+                 (style FONT-STYLES)
+                 style)]
+   (Font. name style size))))
+
+(defn set-font
+  "Set the font for a text node."
+  ([node name]
+   (.setFont node name))
+  ([node name size]
+   (.setFont node (font name size)))
+  ([node name size style]
+   (.setFont node (font name size style))))
+
+(defn font-size
+  [node size]
+  (let [{:keys [name style]} (bean (.getFont node))]
+    (set-font node (font name size style))))
 
 (defn point [x y]
   (Point2D$Double. x y))
@@ -149,7 +237,7 @@
 
 (defn animation
   [node length property start end]
-  (Clip/create (long length) 1 node 
+  (Clip/create (long length) 1 node
                property (to-array [start end])))
 
 (defn animate
@@ -165,7 +253,10 @@
                      :stroke      SGAbstractShape$Mode/STROKE
                      :stroke-fill SGAbstractShape$Mode/STROKE_FILL})
 
-(defn mode [node mode] (.setMode node (shape-mode-map mode)))
+(defn mode
+  "Set the draw mode for this mode, one of :fill, :stroke, or :stroke-fill."
+  [node mode]
+  (.setMode node (shape-mode-map mode)))
 
 (def stroke-cap-map  {:butt   BasicStroke/CAP_BUTT
                       :round  BasicStroke/CAP_ROUND
@@ -304,18 +395,8 @@
 
 (defn anti-alias [node value] (.setAntialiasingHint node (antialias-map value)))
 
-(defn set-location! [node x y]
+(defn set-location [node x y]
   (.setLocation node (Point2D$Double. x y)))
-
-(defn set-text! [node text] (.setText node text))
-
-(def font-style-map {:plain  Font/PLAIN
-                     :italic Font/ITALIC
-                     :bold   Font/BOLD})
-
-(defn set-font!
-  [node name style size]
-  (.setFont node (Font. name (font-style-map style) size)))
 
 (def text-antialias-map {:default  RenderingHints/VALUE_TEXT_ANTIALIAS_DEFAULT
                          :gasp     RenderingHints/VALUE_TEXT_ANTIALIAS_GASP
