@@ -26,7 +26,7 @@
    (com.sun.scenario.effect.light
      DistantLight Light PointLight SpotLight Light$Type )
    (java.awt BasicStroke BorderLayout Color Point Dimension
-             Font Insets RenderingHints Shape 
+             Font Insets RenderingHints Shape
              Toolkit GraphicsEnvironment)
    (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter)
    (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
@@ -122,7 +122,11 @@
 (defn set-text
   "Set the text string on a text node."
   [node text]
-  (.setText node text))
+  (.setText 
+    (cond
+      (= SGComponent (type node)) (.getComponent node)
+      :else node)
+    text))
 
 (defn text
   "Create a text scenegraph node."
@@ -530,7 +534,11 @@
 
 (defn- handle [handlers key event node]
   (if-let [handler (get handlers key)]
-    (run-handler handler event node)))
+    (try
+      (run-handler handler event node)
+      (catch Exception e
+        (println "handler exception: " e)
+        (println (.printStackTrace e))))))
 
 (defn on-mouse [node & {:as handlers}]
   (.addMouseListener node

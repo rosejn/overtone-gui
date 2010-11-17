@@ -24,11 +24,12 @@
          slide-scale (sg/scale slide 1 (/ (- FADER-HEIGHT handle-height) FADER-HEIGHT))
          slide-tx (sg/translate slide-scale 0 handle-height)
          value (atom 0.8)
-         last-y (atom 0)]
+         last-y (atom 0)
+         f-color (atom (get-color :stroke-1))]
      (doto box
        (sg/anti-alias :on)
        (sg/mode :stroke-fill)
-       (sg/stroke-color (get-color :stroke-1))
+       (sg/stroke-color @f-color)
        (sg/fill-color (get-color :background))
        (sg/set-shape (sg/round-rectangle 0 0 FADER-WIDTH FADER-HEIGHT
                                             FADER-CORNER-FADER-WIDTH
@@ -37,7 +38,7 @@
      (doto slide
        (sg/anti-alias :on)
        (sg/mode :fill)
-       (sg/fill-color (get-color :fill-1))
+       (sg/fill-color (transparent-color @f-color))
        (sg/set-shape (sg/round-rectangle 0 0
                                             FADER-WIDTH
                                             FADER-HEIGHT
@@ -46,7 +47,7 @@
      (doto handle
        (sg/anti-alias :on)
        (sg/mode :fill)
-       (sg/fill-color (get-color :stroke-1))
+       (sg/fill-color @f-color)
        (sg/set-shape (sg/round-rectangle 0 0
                                             FADER-WIDTH
                                             handle-height
@@ -54,7 +55,13 @@
                                             (/ FADER-CORNER-FADER-HEIGHT 2))))
 
      (sg/add group box slide-tx handle-tx)
-     (sg/block-mouse group true)
+;     (sg/block-mouse group true)
+
+     (sg/observe f-color
+       (fn [new-color]
+         (sg/stroke-color box new-color)
+         (sg/fill-color slide (transparent-color new-color))
+         (sg/fill-color handle new-color)))
 
      (sg/observe value
         (fn [new-val]
@@ -91,4 +98,5 @@
 
      {:type :fader
       :group group
-      :value value})))
+      :value value
+      :color f-color})))
