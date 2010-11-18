@@ -114,7 +114,7 @@
               (fn [{surface :surface {:keys [affine name]} :widget}]
                 (let [{:keys [translateX translateY]} (bean (.getAffine affine))]
                   (println "edit-bar-handler: " name)
-                  (sg/in-swing 
+                  (sg/in-swing
                     (sg/set-text x-lbl (str "x: " translateX))
                     (sg/set-text y-lbl (str "y: " translateY))
                     (sg/set-text name-input name)))))
@@ -144,6 +144,7 @@
                     :affine affine
                     :selected #{})
         surf (with-edit-bar surf)]
+    (sg/visible (:edit-bar surf) false)
     (sg/set-scene panel affine)
 
     (doto selection-box
@@ -234,21 +235,21 @@
 
     surf))
 
-(def EDIT-PADDING 35)
+(def EDIT-PADDING 0)
 
 (defn- next-widget-name [s w]
   (let [widgets (filter #(= (:type w) (:type %)) @(:widgets* s))]
     (str (name (:type w)) "-" (count widgets))))
 
-(def SNAP-DISTANCE 3)
+(def SNAP-DISTANCE 6)
 
 (defn snap-lines [s]
   (let [bounds (map #(.getBounds (:affine %)) @(:widgets* s))
-        xs (sort (flatten (map (fn [b] 
+        xs (sort (flatten (map (fn [b]
                                  (let [{:keys [x centerX width]} (bean b)]
                                    [x centerX (+ x width)]))
                                bounds)))
-        ys (sort (flatten (map (fn [b] 
+        ys (sort (flatten (map (fn [b]
                                  (let [{:keys [y centerY height]} (bean b)]
                                    [y centerY (+ y height)]))
                                bounds)))]
@@ -294,7 +295,7 @@
        (sg/visible false))
      (sg/add (:group widget) bounding-box)
 
-     (sg/observe (:selected?* widget) 
+     (sg/observe (:selected?* widget)
        (fn [selected?]
          (if selected?
            (sg/fill-color bounding-box (color 255 255 255 100))
@@ -313,16 +314,16 @@
 
            press-handler
            (fn [event]
-             (println "press: " x ", " y)
+             ;(println "press: " x ", " y)
              (when (= :edit @(:mode* surface))
                (let [x (.getX event)
                      y (.getY event)]
-                 (println "bounding press: " x ", " y)
+                 ;(println "bounding press: " x ", " y)
                  (reset! last-x* x)
                  (reset! last-y* y))
 
                (cond
-                 (.isShiftDown event) 
+                 (.isShiftDown event)
                  (select-widget surface widget)
 
                  (not @(:selected?* widget))
@@ -333,31 +334,31 @@
            bounding-drag-handler
            (fn [event]
              (when (= :edit @(:mode* surface))
-               (println "\ndrag handler...\n------------------------")
+               ;(println "\ndrag handler...\n------------------------")
                  (let [cur-x (.getX event)
                        cur-y (.getY event)
                        dx (- cur-x @last-x*)
                        dy (- cur-y @last-y*)
-                       _ (println "odx, ody: " dx dy) 
+                 ;      _ (println "odx, ody: " dx dy)
                        bounds (selected-widget-bounds surface)
-                       _ (println "bounds: " bounds)
+                 ;      _ (println "bounds: " bounds)
                        [dx dy] (if bounds
-                                 (let [cx (+ dx (.getCenterX bounds)) 
+                                 (let [cx (+ dx (.getCenterX bounds))
                                        cy (+ dy (.getCenterY bounds))
-                                       _ (println "center x,y: " cx cy)
+                 ;                      _ (println "center x,y: " cx cy)
                                        [snap-x snap-y] (snap-point-to-widgets surface cx cy)
-                                       _ (println "snap x,y: " snap-x snap-y)
+                 ;                      _ (println "snap x,y: " snap-x snap-y)
                                        dx (+ dx (- snap-x cx))
                                        dy (+ dy (- snap-y cy))]
                                    [dx dy])
                                  [dx dy])]
-                   (println "dx, dy: " dx dy)
+                 ;  (println "dx, dy: " dx dy)
                    (doseq [w (selected-widgets surface)]
                      (.transformBy (:affine w)
                                    (AffineTransform/getTranslateInstance (double dx)
                                                                          (double dy))))
-                   (reset! last-x* cur-x)
-                   (reset! last-y* cur-y))))]
+                   (reset! last-x* (+ @last-x* dx))
+                   (reset! last-y* (+ @last-y* dy)))))]
 
        (sg/on-mouse bounding-box :press press-handler :drag bounding-drag-handler))
 
