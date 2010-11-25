@@ -15,8 +15,8 @@
                :stroke-1 (Color. 0 140 236)
                :fill-2 (Color. 170 170 170 150)
                :stroke-2 (Color. 170 170 170)
-               :fill-3 (Color.  0 130 236 150)
-               :stroke-3 (Color. 0 130 236)
+               :fill-3 (Color.  170 30 30 150)
+               :stroke-3 (Color. 170 30 30)
                :background (Color. 40 40 40)
                :grid-lines (Color. 80 80 80)
                :current-color (Color. 0 130 226)
@@ -39,7 +39,7 @@
 
 (defn shift
   "Shifts a color by a amount."
-  ([color amount] 
+  ([color amount]
    (let [{:keys [red green blue]} (bean color)]
    (Color. (max 0 (+ red amount))
            (max 0 (+ green amount))
@@ -48,13 +48,13 @@
 (defn darken
   "Darken a color in steps of -10 for each of r, g, and b."
   ([color] (darken color 1))
-  ([color factor] 
+  ([color factor]
    (shift color (* factor -10))))
 
 (defn lighten
   "Darken a color in steps of -10 for each of r, g, and b."
   ([color] (lighten color 1))
-  ([color factor] 
+  ([color factor]
    (shift color (* factor 10))))
 
 (defn transparent-color

@@ -4,7 +4,8 @@
   overtone.gui.surface.fader
   (:use
     [overtone event]
-    [overtone.gui color])
+    [overtone.gui color]
+    [overtone.gui.surface core])
   (:require [overtone.gui.sg :as sg]))
 
 (def FADER-WIDTH 20)
@@ -12,9 +13,8 @@
 (def FADER-CORNER-FADER-WIDTH 5)
 (def FADER-CORNER-FADER-HEIGHT 5)
 
-(defn fader
-  ([] (fader false))
-  ([handler]
+(defn- fader*
+  ([{:keys [value color]}]
    (let [group (sg/group)
          box (sg/shape)
          handle-height (/ FADER-HEIGHT 15)
@@ -23,9 +23,9 @@
          slide (sg/shape)
          slide-scale (sg/scale slide 1 (/ (- FADER-HEIGHT handle-height) FADER-HEIGHT))
          slide-tx (sg/translate slide-scale 0 handle-height)
-         value (atom 0.8)
+         value (atom value)
          last-y (atom 0)
-         f-color (atom (get-color :stroke-1))]
+         f-color (atom (or color (get-color :stroke-1)))]
      (doto box
        (sg/anti-alias :on)
        (sg/mode :stroke-fill)
@@ -55,7 +55,6 @@
                                             (/ FADER-CORNER-FADER-HEIGHT 2))))
 
      (sg/add group box slide-tx handle-tx)
-;     (sg/block-mouse group true)
 
      (sg/observe f-color
        (fn [new-color]
@@ -88,9 +87,7 @@
                         (* 0.01 dy))
                    val (max 0 (min (+ @value dv) 1))]
                (reset! last-y cur-y)
-               (reset! value val)
-               (if handler
-                 (handler val))))]
+               (reset! value val)))]
 
        (sg/on-mouse group
          :press press-handler
@@ -100,3 +97,6 @@
       :group group
       :value value
       :color f-color})))
+
+(def fader (widget-fn fader*))
+

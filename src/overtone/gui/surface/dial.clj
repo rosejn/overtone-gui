@@ -4,14 +4,14 @@
   overtone.gui.surface.dial
   (:use
     [overtone event]
-    [overtone.gui color])
+    [overtone.gui color]
+    [overtone.gui.surface core])
   (:require [overtone.gui.sg :as sg]))
 
 (def DIAL-SIZE 30)
 
-(defn dial
-  ([] (dial false))
-  ([handler]
+(defn- dial*
+  ([{:keys [value color]}]
    (let [group (sg/group)
          ring (sg/shape)
          back-fill (sg/shape)
@@ -19,8 +19,8 @@
          fill-arc (sg/arc 0 0 DIAL-SIZE DIAL-SIZE
                                  -130 -200 :pie)
          center (sg/shape)
-         value (atom 1.0)
-         d-color (atom (get-color :stroke-1))]
+         value (atom value)
+         d-color (atom (or color (get-color :stroke-1)))]
      (doto ring
        (sg/anti-alias :on)
        (sg/mode :stroke)
@@ -65,8 +65,6 @@
          (sg/fill-color back-fill (transparent-color new-color))
          (sg/fill-color front-fill new-color)))
 
-     (reset! value 0.5)
-
      (let [last-y (atom 0)
            press-handler
            (fn [event]
@@ -82,9 +80,7 @@
                         (* 0.01 dy))
                    val (max 0 (min (+ @value dv) 1))]
                (reset! value val)
-               (reset! last-y cur-y)
-               (if handler
-                 (handler val))))]
+               (reset! last-y cur-y)))]
 
        (sg/on-mouse group
          :press press-handler
@@ -94,3 +90,5 @@
       :group group
       :value value
       :color d-color})))
+
+(def dial (widget-fn dial*))

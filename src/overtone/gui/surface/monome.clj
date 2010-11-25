@@ -5,7 +5,8 @@
   (:use
     clojure.stacktrace
     [overtone event]
-    [overtone.gui color])
+    [overtone.gui color]
+    [overtone.gui.surface core])
   (:require [overtone.gui.sg :as sg]))
 
 (def MONOME-BUTTON-SIZE 25)
@@ -14,7 +15,7 @@
 (def MONOME-CORNER 3)
 
 (defn m-button [monome x y]
-  (let [{:keys [color handler]} monome
+  (let [{:keys [color]} monome
         group  (sg/group)
         back   (sg/shape)
         box    (sg/shape)
@@ -23,8 +24,6 @@
         status (atom false)
         press-handler (fn [event]
                         (swap! status not)
-                        (if handler
-                          (handler x y @status))
                         (if @status
                           (sg/fill-color back (transparent-color @color))
                           (sg/fill-color back (get-color :background)))
@@ -55,32 +54,32 @@
 
     group))
 
-(defn monome
-  ([columns rows] (monome columns rows false))
-  ([columns rows handler]
-   (let [width   (+ MONOME-MARGIN (* columns FMONOME-BUTTON-SIZE))
-         height  (+ MONOME-MARGIN (* rows FMONOME-BUTTON-SIZE))
-         group   (sg/group)
-         border  (sg/shape)
-         m-color (atom (get-color :stroke-1))
-         mono    {:type :monome
-                  :group group
-                  :columns columns
-                  :rows rows
-                  :handler handler
-                  :color m-color}
-         buttons (doall (for [i (range columns)
-                              j (range rows)]
-                          (m-button mono i j)))]
-     (doto border
-       (sg/mode :stroke)
-       (sg/stroke-color @m-color)
-       (sg/set-shape (sg/round-rectangle 0 0 width height
+(defn- monome*
+  [{:keys [rows columns color]}]
+  (let [width   (+ MONOME-MARGIN (* columns FMONOME-BUTTON-SIZE))
+        height  (+ MONOME-MARGIN (* rows FMONOME-BUTTON-SIZE))
+        group   (sg/group)
+        border  (sg/shape)
+        m-color (atom (or color (get-color :stroke-1)))
+        mono    {:type :monome
+                 :group group
+                 :columns columns
+                 :rows rows
+                 :color m-color}
+        buttons (doall (for [i (range columns)
+                             j (range rows)]
+                         (m-button mono i j)))]
+    (doto border
+      (sg/mode :stroke)
+      (sg/stroke-color @m-color)
+      (sg/set-shape (sg/round-rectangle 0 0 width height
                                         MONOME-CORNER
                                         MONOME-CORNER)))
-     (apply sg/add group border buttons)
+    (apply sg/add group border buttons)
 
-     (assoc mono :buttons buttons))))
+    (assoc mono :buttons buttons)))
+
+(def monome (widget-fn monome*))
 
 (defn monome-led-on [x y])
 (defn monome-led-off [x y])

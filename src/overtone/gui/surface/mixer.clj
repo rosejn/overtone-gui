@@ -6,20 +6,14 @@
   (:require [overtone.gui.sg :as sg]))
 
 (defn add-mixer-channel [s x y]
-  (let [vol (fader)
-        hi  (dial)
-        mid (dial)
-        low (dial)
-        cut (button)]
-    (doseq [d [hi mid low]]
-      (reset! (:color d) (get-color :stroke-2)))
-    (reset! (:color cut) (get-color :stroke-3))
-    (surface-add-widget s vol x y)
-    (surface-add-widget s hi  (+ 30 x) (+ 10 y))
-    (surface-add-widget s mid (+ 30 x) (+ 60 y))
-    (surface-add-widget s low (+ 30 x) (+ 110 y))
-    (surface-add-widget s cut x (+ 150 y))
-    s))
+  (let [dc (get-color :stroke-2)
+        bc (get-color :stroke-3)]
+    (-> s
+      (fader  :volume 0.8 :x x        :y y)
+      (dial   :hi     0.5 :x (+ 30 x) :y (+ 10 y)  :color dc)
+      (dial   :mid    0.5 :x (+ 30 x) :y (+ 60 y)  :color dc)
+      (dial   :low    0.5 :x (+ 30 x) :y (+ 110 y) :color dc)
+      (button :cut    0.5 :x x        :y (+ 150 y) :color bc))))
 
 (def MIXER-WIDTH 550)
 (def MIXER-HEIGHT 260)
@@ -36,17 +30,18 @@
         btn (surface-add-widget s (button) x y)
         anim-x (sg/animation (:translate btn) 300 "TranslateX" x cx)
         anim-y (sg/animation (:translate btn) 300 "TranslateY" y cy)]
-    ;(println "x: " x "y: " y)
-    ;(println "cx: " cx "cy: " cy)
     (sg/animate anim-x anim-y)))
 
 (defn mixer*
   [width height]
-   (try 
+   (try
    (let [s (surface "Mixer" width height)]
+     
      (dotimes [i 4]
        (add-mixer-channel s (+ 20 (* i 80)) 10))
-     (surface-add-widget s (monome 4 4) 350 20)
+
+     (monome s :sequencer nil :rows 4 :columns 4 :x 350 :y 20)
+
      (sg/on-key-pressed (:group s)
        (fn [{:keys [key modifiers]}]
         ;(println "key: " key modifiers)
@@ -59,13 +54,12 @@
 
 (defn mixer
   ([] (mixer MIXER-WIDTH MIXER-HEIGHT))
-  ([width height] 
+  ([width height]
    (let [p (promise)]
      (sg/in-swing (deliver p (mixer* width height)))
      @p)))
 
 (defn change-color [widget color]
-  ;(println "color: " color)
   (reset! (:color widget) color))
 
 (defn widgets-of-type [m w-type]

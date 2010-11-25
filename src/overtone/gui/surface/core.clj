@@ -262,21 +262,14 @@
     [(or x-line x) (or y-line y)]))
 
 (defn surface-add-widget
-  "Add a control widget to a surface, optionally specifying the
-  x,y position and scaling factor for the widget."
-  ([surface {:keys [width height] :as widget}]
-   (surface-add-widget surface widget (/ width 2) (/ height 2)))
-  ([surface widget x y]
-   (surface-add-widget surface widget x y 1.0))
+  "Add a control widget to a surface."
   ([surface widget x y scale-factor]
    (let [y (+ y EDIT-PADDING)
          {:keys [group widgets]} surface
          affine (sg/affine (:group widget))
          bounds (.getBounds (:group widget))
          bounding-box (sg/shape)
-         widget-name (or (:name widget) (next-widget-name surface widget))
          widget (assoc widget
-                       :name widget-name
                        :affine affine
                        :selected?* (atom false)
                        :bounding-box bounding-box)]
@@ -365,12 +358,38 @@
      (sg/add group affine)
 
      (swap! (:widgets* surface) conj widget)
-     widget)))
+
+     surface)))
 
 (defn surface-remove-widget [surface widget]
   (let [{:keys [group widgets]} surface
         {:keys [translate]} widget]
     (sg/remove group translate)
     (swap! widgets disj widget)
+
     surface))
+
+(defn widget-fn
+  "Takes a function that should accept an atom and return a scenegraph group representing the
+  widget which is configured to update the atom whenever the value is changed."
+  [f]
+  (fn [s name init-val & {:as options}]
+    (let [options (merge {:x 10 :y 10 :scale 1
+                          :value init-val :mul 1}
+                         options)
+          {:keys [x y scale mul]} options
+          options (dissoc options :x :y :mul :scale)
+          widget (f options)
+          widget (assoc widget :name name)]
+      (surface-add-widget s widget x y scale))))
+
+(defn widget-vals [s]
+  (into {} (map (fn [w] [(:name w) (:value w)]) @(:widgets* s))))
+
+(defn s-val [s name]
+  (let [ws (filter #(= name (:name %)) @(:widgets* s))
+        vals (map #(deref (:value %)) ws)]
+    (if (= 1 (count vals))
+      (first vals)
+      vals)))
 
