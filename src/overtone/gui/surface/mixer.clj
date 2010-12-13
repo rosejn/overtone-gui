@@ -5,7 +5,7 @@
     [overtone.gui.surface core button monome fader dial])
   (:require [overtone.gui.sg :as sg]))
 
-(defn add-mixer-channel [s x y]
+(defn add-mixer-channel [s i x y]
   (let [dc (get-color :stroke-2)
         bc (get-color :stroke-3)]
     (-> s
@@ -36,7 +36,7 @@
   [width height]
    (try
    (let [s (surface "Mixer" width height)]
-     
+
      (dotimes [i 4]
        (add-mixer-channel s (+ 20 (* i 80)) 10))
 
