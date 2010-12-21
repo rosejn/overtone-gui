@@ -14,7 +14,7 @@
 (def FADER-CORNER-FADER-HEIGHT 5)
 
 (defn- fader*
-  ([{:keys [value color]}]
+  ([{:keys [color]}]
    (let [group (sg/group)
          box (sg/shape)
          handle-height (/ FADER-HEIGHT 15)
@@ -23,7 +23,7 @@
          slide (sg/shape)
          slide-scale (sg/scale slide 1 (/ (- FADER-HEIGHT handle-height) FADER-HEIGHT))
          slide-tx (sg/translate slide-scale 0 handle-height)
-         value (atom value)
+         value (atom 0.8)
          last-y (atom 0)
          f-color (atom (or color (get-color :stroke-1)))]
      (doto box

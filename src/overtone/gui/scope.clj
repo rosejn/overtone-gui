@@ -104,8 +104,9 @@
 
 (defn- update-scope []
   (let [{:keys [buf buf-size width height panel]} @scope*
-        frames (buffer-data (:buf @scope*))
-        step (int (/ buf-size width))
+        buf (:buf @scope*)
+        frames (buffer-data buf)
+        step (int (/ (:size buf) width))
         y-scale (/ (- height (* 2 Y-PADDING)) 2)
         y-shift (+ (/ height 2) Y-PADDING)]
     (dotimes [x width]
@@ -117,7 +118,7 @@
 
 ; Note: The fft ugen writes into a buffer:
 ; dc, nyquist, real, imaginary, real, imaginary....
-(defn- update-scope []
+(comment defn- update-scope []
   (let [{:keys [buf width height panel]} @scope*
         frames  (buffer-data buf)
         n-reals (/ (- (:size buf) 2) 2)
@@ -128,7 +129,7 @@
       (aset ^ints y-array x
             (int (+ y-shift
                     (* y-scale
-                       (aget ^floats frames 
+                       (aget ^floats frames
                              (+ 2 (* 2 (unchecked-multiply x step))))))))))
   (.repaint (:panel @scope*)))
 
@@ -193,7 +194,7 @@
                    :bus bus
                    :tmp-buf true
                    :bus-synth bus-synth))
-    (apply-at update-scope (+ (now) 1000))
+    (apply-at update-scope (+ (now) 1000) [])
     (update-scope)))
 
 (defn freq-scope-buf [buf]

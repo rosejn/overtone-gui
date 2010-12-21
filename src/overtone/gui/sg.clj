@@ -28,7 +28,8 @@
    (java.awt BasicStroke BorderLayout Color Point Dimension
              Font Insets RenderingHints Shape
              Toolkit GraphicsEnvironment)
-   (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter)
+   (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter
+                   ComponentListener)
    (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
                   CubicCurve2D$Double QuadCurve2D$Double
                   Rectangle2D$Double RoundRectangle2D$Double
@@ -42,7 +43,9 @@
 (def DEFAULT-INPUT-COLS 12)
 
 (defmacro in-swing [& body]
-  `(SwingUtilities/invokeLater (fn [] ~@body)))
+  `(let [p# (promise)]
+     (SwingUtilities/invokeLater
+       (fn [] (deliver p# (do ~@body))))))
 
 (defn observe [ref handler]
   (add-watch ref (gensym "sg/watch")
@@ -122,7 +125,7 @@
 (defn set-text
   "Set the text string on a text node."
   [node text]
-  (.setText 
+  (.setText
     (cond
       (= SGComponent (type node)) (.getComponent node)
       :else node)
@@ -532,10 +535,10 @@
         (keyTyped [this event node]
           (run-handler handler event node)))))
 
-(defn- handle [handlers key event node]
+(defn- handle [handlers key & args]
   (if-let [handler (get handlers key)]
     (try
-      (run-handler handler event node)
+      (apply run-handler handler args)
       (catch Exception e
         (println "handler exception: " e)
         (println (.printStackTrace e))))))
@@ -560,8 +563,21 @@
       (mouseWheelMoved [this event node]
         (handle handlers :wheel event node)))))
 
+(defn on-component [comp & {:as handlers}]
+  (.addComponentListener comp
+    (reify ComponentListener
+      (componentShown [this event]
+        (handle handlers :show event comp))
+      (componentHidden [this event]
+        (handle handlers :hide event comp))
+      (componentMoved [this event]
+        (handle handlers :move event comp))
+      (componentResized [this event]
+        (handle handlers :resize event comp)))))
+
 (defn on-bounds-changed [node handler]
   (.addNodeListener node
       (reify SGNodeListener
         (boundsChanged [this event] (run-handler handler event)))))
+
 

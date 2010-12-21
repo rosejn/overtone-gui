@@ -5,7 +5,8 @@
   (:use
     [overtone event]
     [overtone.gui color]
-    clojure.contrib.repl-utils)
+    clojure.contrib.repl-utils
+    [overtone.gui.surface label])
   (:require [overtone.gui.sg :as sg])
   (:import [java.awt.geom AffineTransform]))
 
@@ -27,13 +28,10 @@
         grid (sg/shape)
         grid-path (grid-lines width height)]
 
-    ; TODO: Figure out how to have a seemingly infinite background
     (doto background
       (sg/mode :fill)
       (sg/fill-color (get-color :background))
       (sg/set-shape (sg/rectangle 0 0 width height)))
-      ;(* -2.0 width) (* -2.0 height)
-      ;(* 2.0 width) (* 2.0 height))))
 
     (doto grid
       (sg/set-shape grid-path)
@@ -55,7 +53,6 @@
   (reset! (:mode* s) mode))
 
 (defn select-widget [s widget]
-  (println "selecting widget: " (:name widget))
   (reset! (:selected?* widget) true)
   (event ::widget-selected :surface s :widget widget))
 
@@ -228,6 +225,13 @@
               (surface-mode surf :active)
               (deselect-all-widgets))
             (surface-mode surf :edit)))))
+
+    (sg/on-component frame
+      :resize #(sg/set-shape (:background surf)
+                             (sg/rectangle 0 0 
+                                           (.getWidth frame)
+                                           (.getHeight frame))))
+
     (doto frame
       (.add panel)
       (.pack)
@@ -241,7 +245,7 @@
   (let [widgets (filter #(= (:type w) (:type %)) @(:widgets* s))]
     (str (name (:type w)) "-" (count widgets))))
 
-(def SNAP-DISTANCE 6)
+(def SNAP-DISTANCE 3)
 
 (defn snap-lines [s]
   (let [bounds (map #(.getBounds (:affine %)) @(:widgets* s))
@@ -263,29 +267,55 @@
 
 (defn surface-add-widget
   "Add a control widget to a surface."
-  ([surface widget x y scale-factor]
-   (let [y (+ y EDIT-PADDING)
+  ([surface widget]
+   (let [{:keys [name x y scale rotate label]} widget
+         y (+ y EDIT-PADDING)
+         wx x
+         wy y
          {:keys [group widgets]} surface
          affine (sg/affine (:group widget))
          bounds (.getBounds (:group widget))
+         lbl (label-group {})
+         lbl-y (+ (.getHeight bounds) -5)
+         lbl-tx (sg/translate (:group lbl) 0 lbl-y)
+         w-bounds (.getBounds (:group widget))
          bounding-box (sg/shape)
          widget (assoc widget
                        :affine affine
                        :selected?* (atom false)
                        :bounding-box bounding-box)]
 
+     (sg/add (:group widget) lbl-tx)
+
      (doto affine
        (.transformBy (AffineTransform/getTranslateInstance (double x) (double y)))
+       (.transformBy (AffineTransform/getScaleInstance scale scale))
+       (.transformBy (AffineTransform/getRotateInstance rotate))
        (sg/block-mouse true))
 
+     ; Center the label below the widget
+     (sg/observe (:value lbl)
+       (fn [new-txt]
+         (let [{:keys [x y width height]} (bean (.getBounds (:group lbl)))
+               w-middle (/ (.getWidth w-bounds) 2)
+               lbl-middle (/ width 2)
+               lbl-x (double (- w-middle lbl-middle))]
+           (.setTranslateX lbl-tx lbl-x))
+         (println "after...")))
+
+     (reset! (:value lbl) (or label (clojure.core/name name)))
+
+     ;(.setToolTipText (:group widget) (or label (clojure.core/name name)))
+
      (doto bounding-box
-       (sg/set-shape (sg/rectangle (.getX bounds)
-                                   (.getY bounds)
-                                   (.getWidth bounds)
-                                   (.getHeight bounds)))
+       (sg/set-shape (sg/rectangle (.getX w-bounds)
+                                   (.getY w-bounds)
+                                   (.getWidth w-bounds)
+                                   (.getHeight w-bounds)))
        (sg/mode :fill)
        (sg/fill-color (color 255 255 255 100))
        (sg/visible false))
+
      (sg/add (:group widget) bounding-box)
 
      (sg/observe (:selected?* widget)
@@ -301,6 +331,9 @@
            (doto bounding-box
              (sg/visible status)
              (sg/block-mouse status)))))
+
+     ; Set the label text
+     (reset! (:value lbl) name)
 
      (let [last-x* (atom 0)
            last-y* (atom 0)
@@ -369,22 +402,29 @@
 
     surface))
 
+;TODO: Turn mul, scale and rotate into observed atoms
 (defn widget-fn
   "Takes a function that should accept an atom and return a scenegraph group representing the
   widget which is configured to update the atom whenever the value is changed."
   [f]
   (fn [s name init-val & {:as options}]
-    (let [options (merge {:x 10 :y 10 :scale 1
-                          :value init-val :mul 1}
+    (let [options (merge {:x 10 :y 10 :scale 1 :mul 1 :rotate 0}
                          options)
           {:keys [x y scale mul]} options
-          options (dissoc options :x :y :mul :scale)
           widget (f options)
-          widget (assoc widget :name name)]
-      (surface-add-widget s widget x y scale))))
+          widget (assoc widget :name name :mul mul :x x :y y :scale scale :rotate 0)]
+      (cond
+        (number? init-val) (reset! (:value widget) (/ init-val (float mul)))
+        (string? init-val) (reset! (:value widget) init-val))
 
-(defn widget-vals [s]
-  (into {} (map (fn [w] [(:name w) (:value w)]) @(:widgets* s))))
+      (surface-add-widget s widget))))
+
+; Create the (label ...) function here so we can use label-group but not have a circular
+; dependency with label.clj.
+(def label (widget-fn label-group))
+
+(defn surface-vals [s]
+  (into {} (map (fn [w] [(:name w) @(:value w)]) @(:widgets* s))))
 
 (defn s-val [s name]
   (let [ws (filter #(= name (:name %)) @(:widgets* s))
@@ -392,4 +432,13 @@
     (if (= 1 (count vals))
       (first vals)
       vals)))
+
+(defn surface-inst
+  "Bind a surface to an instrument so any widgets with a name matching an instrument param name
+  will send control messages to update the instrument in real-time."
+  [surf inst-fn]
+  (for [{:keys [name value mul]} @(:widgets* surf)] 
+      (add-watch value name
+                 (fn [_ _ _ new-val]
+                   (inst-fn :ctl name (* mul new-val))))))
 

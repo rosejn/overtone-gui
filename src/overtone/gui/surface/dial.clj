@@ -11,7 +11,7 @@
 (def DIAL-SIZE 30)
 
 (defn- dial*
-  ([{:keys [value color]}]
+  ([{:keys [color]}]
    (let [group (sg/group)
          ring (sg/shape)
          back-fill (sg/shape)
@@ -19,7 +19,7 @@
          fill-arc (sg/arc 0 0 DIAL-SIZE DIAL-SIZE
                                  -130 -200 :pie)
          center (sg/shape)
-         value (atom value)
+         value (atom 0.5)
          d-color (atom (or color (get-color :stroke-1)))]
      (doto ring
        (sg/anti-alias :on)
@@ -52,6 +52,7 @@
           (let [angle (- (* new-val 280))]
             (.setAngleExtent fill-arc angle)
             (sg/set-shape front-fill fill-arc))))
+     (reset! value 0.5)
 
      (sg/add group
              ring

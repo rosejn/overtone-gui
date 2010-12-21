@@ -38,7 +38,7 @@
    (let [s (surface "Mixer" width height)]
 
      (dotimes [i 4]
-       (add-mixer-channel s (+ 20 (* i 80)) 10))
+       (add-mixer-channel s i (+ 20 (* i 80)) 10))
 
      (monome s :sequencer nil :rows 4 :columns 4 :x 350 :y 20)
 
