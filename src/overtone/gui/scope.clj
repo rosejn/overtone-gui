@@ -128,7 +128,7 @@
       (aset ^ints y-array x
             (int (+ y-shift
                     (* y-scale
-                       (aget ^floats frames 
+                       (aget ^floats frames
                              (+ 2 (* 2 (unchecked-multiply x step))))))))))
   (.repaint (:panel @scope*)))
 
@@ -193,7 +193,7 @@
                    :bus bus
                    :tmp-buf true
                    :bus-synth bus-synth))
-    (apply-at update-scope (+ (now) 1000))
+    (apply-at (+ (now) 1000) update-scope)
     (update-scope)))
 
 (defn freq-scope-buf [buf]
