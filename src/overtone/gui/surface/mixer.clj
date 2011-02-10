@@ -10,10 +10,10 @@
         bc (get-color :stroke-3)]
     (-> s
       (fader  :volume 0.8 :x x        :y y)
-      (dial   :hi     0.5 :x (+ 30 x) :y (+ 10 y)  :color dc)
-      (dial   :mid    0.5 :x (+ 30 x) :y (+ 60 y)  :color dc)
-      (dial   :low    0.5 :x (+ 30 x) :y (+ 110 y) :color dc)
-      (button :cut    0.5 :x x        :y (+ 150 y) :color bc))))
+      (dial   :hi     0.5 :x (+ 40 x) :y (+ 0 y)  :color dc)
+      (dial   :mid    0.5 :x (+ 40 x) :y (+ 50 y)  :color dc)
+      (dial   :low    0.5 :x (+ 40 x) :y (+ 100 y) :color dc)
+      (button :cut    1   :x x        :y (+ 170 y) :color bc))))
 
 (def MIXER-WIDTH 550)
 (def MIXER-HEIGHT 260)
@@ -38,11 +38,11 @@
    (let [s (surface "Mixer" width height)]
 
      (dotimes [i 4]
-       (add-mixer-channel s i (+ 20 (* i 80)) 10))
+       (add-mixer-channel s i (+ 20 (* i 90)) 10))
 
-     (monome s :sequencer nil :rows 4 :columns 4 :x 350 :y 20)
+     (monome s :sequencer nil :rows 4 :columns 4 :x 380 :y 20)
 
-     (sg/on-key-pressed (:group s)
+     (comment sg/on-key-pressed (:group s)
        (fn [{:keys [key modifiers]}]
         ;(println "key: " key modifiers)
          (cond

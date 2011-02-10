@@ -30,7 +30,7 @@
        (sg/mode :stroke-fill)
        (sg/fill-color (get-color :background))
        (sg/stroke-color @b-color)
-       (sg/set-shape (sg/round-rectangle 0 0 
+       (sg/set-shape (sg/round-rectangle 0 0
                                    BUTTON-SIZE BUTTON-SIZE
                                    BUTTON-CORNER BUTTON-CORNER)))
      (sg/add group box)
@@ -51,4 +51,4 @@
       :color b-color
       :value status})))
 
-(def button (widget-fn button*))
+(def button (surface-register-widget :button button* "B"))

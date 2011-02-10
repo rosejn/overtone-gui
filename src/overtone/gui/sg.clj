@@ -29,16 +29,18 @@
              Font Insets RenderingHints Shape
              Toolkit GraphicsEnvironment)
    (java.awt.event KeyEvent MouseEvent MouseListener MouseAdapter
-                   ComponentListener)
+                   ComponentListener ActionListener)
    (java.awt.geom Point2D$Double Line2D$Double Path2D$Double
                   CubicCurve2D$Double QuadCurve2D$Double
                   Rectangle2D$Double RoundRectangle2D$Double
                   Arc2D Arc2D$Double Ellipse2D$Double AffineTransform)
    (java.awt.image.BufferedImage)
    (javax.swing SwingUtilities JComponent JFrame JPanel JTabbedPane
-                JTextField JLabel ImageIcon JSlider)
+                JTextField JLabel ImageIcon JSlider
+                JToolBar JMenuBar JMenu JMenuItem JFileChooser)
+   (javax.swing.undo UndoManager AbstractUndoableEdit UndoableEdit)
    (javax.swing.border.EmptyBorder)
-   (javax.swing.event ChangeEvent ChangeListener)))
+   (javax.swing.event ChangeEvent ChangeListener UndoableEditEvent)))
 
 (def DEFAULT-INPUT-COLS 12)
 
@@ -77,6 +79,80 @@
         (.setBackground java.awt.Color/GRAY)))
   ([w h] (doto (panel)
            (.setPreferredSize (java.awt.Dimension. w h)))))
+
+(defn tool-bar
+  []
+  (JToolBar.))
+
+(defn menu-bar
+  []
+  (JMenuBar.))
+
+(defn menu
+  [name]
+  (JMenu. name))
+
+(defn action-listener
+  [f]
+  (reify ActionListener
+    (actionPerformed [this e] (f))))
+
+(defn menu-item
+  ([name] (JMenuItem. name))
+  ([name f] (let [item (JMenuItem. name)]
+              (.addActionListener item (action-listener f))
+              item)))
+
+(defn menus
+  [menu-seq]
+  (let [bar (menu-bar)]
+    (doseq [[m-name & m-items] menu-seq]
+      (let [m (menu m-name)]
+        (.add bar m)
+        (doseq [[i-name i-fn] m-items]
+          (.add m (menu-item i-name i-fn)))))
+    bar))
+
+(defn undoable-edit
+  [undo-label undo-fn
+   redo-label redo-fn]
+  (proxy [UndoableEdit] []
+    (getUndoPresentationName [] undo-label)
+    (getRedoPresentationName [] redo-label)
+    (undo [] (undo-fn))
+    (redo [] (redo-fn))))
+
+(defn undo-manager
+  []
+  (UndoManager.))
+
+(defn undoable
+  [manager source undo-label undo-fn redo-label redo-fn]
+  (let [edit (undoable-edit undo-label undo-fn
+                            redo-label redo-fn)
+        edit-event (UndoableEditEvent. source edit)]
+    (.undoableEditHappened manager edit-event)))
+
+
+; Undo-Redo notes:
+; * Create an UndoManager, and call undoableEditHappened whenever something happens
+; that should be added to the undo stack.
+;  - it takes an UndoableEdit wrapped in an UndoableEditEvent
+;
+; * register functions to call undo and redo on the manager for hot-keys and menus
+
+; Having to pass a parent widget is BS.  Find a way to look it up or create an invisible frame or something.
+(defn file-chooser 
+  [& {:as options}]
+  (let [chooser (if-let [path (:path options)]
+                  (JFileChooser. path)
+                  (JFileChooser.))
+        ret (case (:type options)
+              :save (.showSaveDialog chooser (JFrame. "asdf"))
+              :open (.showOpenDialog chooser (JFrame. "asdf")))]
+    (if (= ret JFileChooser/APPROVE_OPTION)
+      (.. chooser (getSelectedFile) (getName))
+      false)))
 
 (defn set-scene [panel scene]
   (.setScene panel scene))

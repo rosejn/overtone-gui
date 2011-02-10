@@ -27,11 +27,18 @@
       (sg/mode :fill)
       (sg/fill-color (get-color :text)))
 
-    (sg/observe value 
+    (sg/observe value
       (fn [new-txt]
-        (sg/set-text txt new-txt)
+        (try 
+          (sg/set-text txt 
+                       (cond 
+                         (keyword? new-txt) (name new-txt)
+                         :else (str new-txt)))
+          (catch Exception  e
+            (println "Exception calling set-text: " txt " - " new-txt "\n" e)
+            (.printStackTrace e)))
         (let [{:keys [width height]} (bean (.getBounds txt))]
-          (sg/set-shape box (sg/round-rectangle 0 0 
+          (sg/set-shape box (sg/round-rectangle 0 0
              (+ width (* 2 LABEL-PAD) 1)
              (+ height (* 2 LABEL-PAD))
              (* 2 LABEL-PAD) (* 2 LABEL-PAD))))))
@@ -50,7 +57,7 @@
 
     (sg/add group box (sg/translate txt (+ 2 LABEL-PAD)
                                     (+ height LABEL-PAD)))
-    
+
     {:type :label
      :group group
      :color color

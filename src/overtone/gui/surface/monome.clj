@@ -87,7 +87,7 @@
 
     (assoc mono :buttons buttons)))
 
-(def monome (widget-fn monome*))
+(def monome (surface-register-widget :monome monome* "M"))
 
 (defn monome-led-on [x y])
 (defn monome-led-off [x y])

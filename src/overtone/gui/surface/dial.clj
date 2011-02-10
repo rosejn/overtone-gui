@@ -92,4 +92,4 @@
       :value value
       :color d-color})))
 
-(def dial (widget-fn dial*))
+(def dial (surface-register-widget :dial dial* "D"))

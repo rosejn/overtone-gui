@@ -98,5 +98,5 @@
       :value value
       :color f-color})))
 
-(def fader (widget-fn fader*))
+(def fader (surface-register-widget :fader fader* "F"))
 

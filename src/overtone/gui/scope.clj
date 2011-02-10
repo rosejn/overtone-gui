@@ -8,7 +8,7 @@
     (javax.swing JFrame JPanel))
   (:use
      [overtone event util time-utils]
-     [overtone.sc core synth ugen]
+     [overtone.sc core synth ugen buffer]
     clojure.stacktrace)
   (:require [overtone.log :as log]
             [clojure.set :as set]))
@@ -148,7 +148,7 @@
     (if (:tmp-buf @scope*)
       (buffer-free (:buf @scope*)))
     (if-let [s (:bus-synth @scope*)]
-      (kill s))
+      (stop s))
     (alter scope* assoc :buf nil :tmp-buf false
            :bus nil :bus-synth nil))
   (dotimes [i (:width @scope*)]
@@ -168,7 +168,7 @@
   (loop [i 0]
     (cond
       (= 20 i) nil
-      (not (ready? b)) (do
+      (not (buffer-ready? b)) (do
                                 (java.lang.Thread/sleep 50)
                                 (recur (inc i))))))
 
@@ -194,7 +194,7 @@
                    :bus bus
                    :tmp-buf true
                    :bus-synth bus-synth))
-    (apply-at update-scope (+ (now) 1000) [])
+    (apply-at (+ (now) 1000) update-scope [])
     (update-scope)))
 
 (defn freq-scope-buf [buf]

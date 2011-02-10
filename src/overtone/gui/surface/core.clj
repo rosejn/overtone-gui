@@ -10,6 +10,13 @@
   (:require [overtone.gui.sg :as sg])
   (:import [java.awt.geom AffineTransform]))
 
+(def GROUP-PAD 5)
+(def EDIT-PADDING 0)
+(def SNAP-DISTANCE 10)
+
+(defonce widget-fns* (atom {}))
+(defonce widget-keys* (atom {}))
+
 (defn grid-lines [width height]
   (let [grid-path (sg/path)]
     (doseq [x (range 0.0 width (/ width 10.0))] ; vertical
@@ -49,9 +56,6 @@
            :grid grid
            :group group)))
 
-(defn surface-mode [s mode]
-  (reset! (:mode* s) mode))
-
 (defn select-widget [s widget]
   (reset! (:selected?* widget) true)
   (event ::widget-selected :surface s :widget widget))
@@ -67,22 +71,66 @@
   (filter (fn [widget] @(:selected?* widget))
           @(:widgets* s)))
 
-(defn selected-widget-bounds [s]
-  (println "widget-bounds...")
-  (let [widgets (selected-widgets s)
-        start-box (.getBounds (:affine (first widgets)))]
+(defn widget-bounds [widgets]
+  (let [start-box (.getBounds (:affine (first widgets)))]
     (reduce (fn [box w]
               (.add box (.getBounds (:affine w)))
               box)
             start-box
             (next widgets))))
 
+(defn selected-widget-bounds [s]
+  (widget-bounds (selected-widgets s)))
+
 (defn select-intersecting-widgets [s rect]
   (doseq [w (filter #(.intersects rect (.getBounds (:affine %)))
                     @(:widgets* s))]
     (select-widget s w)))
 
-(defn- with-edit-bar [{:keys [mode* group width] :as s}]
+(defn surface-mode [s mode]
+  (reset! (:mode* s) mode)
+  (if (= :active mode)
+    (deselect-all-widgets s)))
+
+(defn surface-group [s]
+  (println "group...")
+  (try
+    (let [bounds (bean (selected-widget-bounds s))
+          border (sg/shape)
+          widgets (selected-widgets s)
+          group {:type :group
+                 :widgets widgets
+                 :border border}]
+        (doto border
+          (sg/anti-alias :on)
+          (sg/mode :stroke)
+          (sg/set-shape (sg/round-rectangle
+                          (- (:x bounds) GROUP-PAD)
+                          (- (:y bounds) GROUP-PAD)
+                          (+ (:width bounds) GROUP-PAD)
+                          (+ (:height bounds) GROUP-PAD) 5 5))
+          (sg/stroke-color (color 255 255 255 120)))
+
+        (sg/add (:group s) border)
+        (swap! (:groups* s) group)
+        (println "created group..."))
+    (catch Exception e
+      (println "Error: " e)
+      (.printStackTrace e)))
+  s)
+
+(defn surface-ungroup
+  [s])
+
+(defn surface-duplicate [s]
+  (println "duplicate...")
+  (let [bounds (bean (selected-widget-bounds s))
+        offset (+ (:width bounds) 10)
+        widgets (selected-widgets)]
+    ;(widget-forms widgets)
+  ))
+
+(comment defn- with-edit-bar [{:keys [mode* group width] :as s}]
   (let [background (sg/shape (sg/rectangle 0 0 width 30))
         bar-group  (sg/group)
         name-lbl   (sg/text "Name: ")
@@ -107,7 +155,7 @@
             x-tx y-tx)
     (sg/add group bar-group)
 
-    (on-event ::widget-selected :edit-bar-handler
+    (comment on-event ::widget-selected :edit-bar-handler
               (fn [{surface :surface {:keys [affine name]} :widget}]
                 (let [{:keys [translateX translateY]} (bean (.getAffine affine))]
                   (println "edit-bar-handler: " name)
@@ -119,30 +167,25 @@
     (assoc s :edit-bar bar-group
            :name-input name-input)))
 
-(defn surface
-  [name width height]
-  (let [frame (sg/frame name width height)
-        panel (sg/panel width height)
-        surf {:type :surface
-              :name name
-              :width width
-              :height height
-              :widgets* (atom #{})}
-        surf  (with-surface-group surf)
-        affine (sg/affine (:group surf))
-        mode* (atom :active)
-        selection-box (sg/shape)
-        selection-rect (sg/rectangle 0 0 0 0)
-        surf (assoc surf
-                    :mode* mode*
-                    :frame frame
-                    :panel panel
-                    :selection-box selection-box
-                    :affine affine
-                    :selected #{})
-        surf (with-edit-bar surf)]
-    (sg/visible (:edit-bar surf) false)
-    (sg/set-scene panel affine)
+(defn widget-translate [w dx dy]
+  (.transformBy (:affine w)
+                (AffineTransform/getTranslateInstance (double dx)
+                                                      (double dy))))
+
+
+(defn surface-scale [s factor]
+  (let [b1 (.getBounds (:affine s))
+        _ (.transformBy (:affine s)
+                        (AffineTransform/getScaleInstance factor factor))
+        b2 (.getBounds (:affine s))]
+    (widget-translate s
+                      (/ (- (.getWidth b2) (.getWidth b1)) 2.0)
+                      (/ (- (.getHeight b2) (.getHeight b1)) 2.0))))
+
+(defn- setup-surface-mouse
+  [surf]
+  (let [selection-box (sg/shape)
+        selection-rect (sg/rectangle 0 0 0 0)]
 
     (doto selection-box
       (sg/anti-alias :on)
@@ -151,9 +194,11 @@
       (sg/fill-color (color 255 255 255 50))
       (sg/set-shape selection-rect)
       (sg/visible false))
-
     (let [select-x* (atom 0)
           select-y* (atom 0)
+          mouse-x* (atom 0)
+          mouse-y* (atom 0)
+          mode (:mode* surf)
           press-handler
           (fn [event]
             ; take the keyboard focus from the edit bar
@@ -161,10 +206,10 @@
 
             ; deselect widgets unless shift
             (if (not (.isShiftDown event))
-                (deselect-all-widgets surf))
+              (deselect-all-widgets surf))
 
             ; setup the selection box
-            (when (= :edit @mode*)
+            (when (= :edit @mode)
               (let [x (.getX event)
                     y (.getY event)]
                 (sg/add (:group surf) selection-box)
@@ -176,76 +221,206 @@
 
           click-handler
           (fn [event]
-            (when (= :edit @mode*)
+            (when (= :edit @mode)
               (if (not (.isShiftDown event))
                 (deselect-all-widgets surf))))
 
           drag-handler
           (fn [event]
-            (when (= :edit @mode*)
+            (when (= :edit @mode)
               (let [x (.getX event)
                     y (.getY event)
                     rect-x (min x @select-x*)
                     rect-y (min y @select-y*)
                     width (- (max x @select-x*) rect-x)
                     height (- (max y @select-y*) rect-y)]
-                ;(println "rect: [" rect-x "," rect-y "] - w: " width " h: " height)
                 (.setRect selection-rect rect-x rect-y width height)
                 (sg/set-shape selection-box selection-rect))))
 
           release-handler
           (fn [event]
-            (when (= :edit @mode*)
-              ;(println "background release...")
+            (when (= :edit @mode)
               (sg/visible selection-box false)
               (sg/remove (:group surf) selection-box)
-              (select-intersecting-widgets surf selection-rect)))]
+              (select-intersecting-widgets surf selection-rect)))
+
+          move-handler
+          (fn [event]
+            (reset! mouse-x* (.getX event))
+            (reset! mouse-y* (.getY event)))]
 
       (sg/on-mouse (:group surf)
                    :click click-handler
                    :drag  drag-handler
                    :release release-handler
-                   :press press-handler))
+                   :press press-handler
+                   :move move-handler)
+      (assoc surf
+             :mouse-x* mouse-x*
+             :mouse-y* mouse-y*))))
 
-    (sg/on-key-pressed (:group surf)
-      (fn [{:keys [key modifiers]}]
-        (cond
-          (and (= "Minus" key)       ; zoom out
-               (= "Ctrl" modifiers))
-          (.transformBy affine (AffineTransform/getScaleInstance 0.9 0.9))
+(defn- center-shift [w]
+  (let [b (.getBounds (:affine w))]
+    [(/ (.getWidth b) 2.0) (/ (.getHeight b) 2.0)]))
 
-          (and (or (= "Equals" key)  ; zoom in
-                   (= "Plus" key))
-               (= "Ctrl" modifiers))
-          (.transformBy affine (AffineTransform/getScaleInstance 1.1 1.1))
+(defn- widget-button [s key]
+  (when-let [w-fn (get @widget-keys* key)]
+    (let [{:keys [mouse-x* mouse-y* mode*]} s
+          mouse-x @mouse-x*
+          mouse-y @mouse-y*
+          widget (w-fn s (keyword (gensym "widget")) 1 :x mouse-x :y mouse-y)
+          shift (center-shift widget)]
+      (println "shift: " shift)
+      (apply widget-translate widget shift))))
 
-          (= "E" key)
-          (if (= :edit @mode*)
-            (do
-              (surface-mode surf :active)
-              (deselect-all-widgets))
-            (surface-mode surf :edit)))))
+;        widget (cond
+;                 (= "B" key)
+;                 ((:button @widget-fns*) s
+;                    (keyword (gensym "button")) 1
+;                    :x mouse-x :y mouse-y)
+;
+;                 (= "F" key)
+;                 ((:fader @widget-fns*) s
+;                    (keyword (gensym "fader")) 0.8
+;                    :x mouse-x :y mouse-y)
+;
+;                 (= "D" key)
+;                 ((:dial @widget-fns*) s
+;                    (keyword (gensym "dial")) 0.5
+;                    :x mouse-x :y mouse-y)
+;
+;                 (= "M" key)
+;                 ((:monome @widget-fns*) s nil
+;                    (keyword (gensym "monome"))
+;                    :x mouse-x :y mouse-y)
+;
+;                 (= "L" key)
+;                 ((:label @widget-fns*) s
+;                    (keyword (gensym "label")) nil
+;                    :x mouse-x :y mouse-y))
+
+(defn- surface-key-press [surf key modifiers]
+  (let [{:keys [mouse-x* mouse-y* mode*]} surf
+        mouse-x @mouse-x*
+        mouse-y @mouse-y*]
+    (try
+      (cond
+        (and (= "Minus" key)       ; zoom out
+             (= "Ctrl" modifiers))
+        (surface-scale surf 0.9)
+
+        (and (or (= "Equals" key)  ; zoom in
+                 (= "Plus" key))
+             (= "Ctrl" modifiers))
+        (surface-scale surf 1.1)
+
+        (and (= "Ctrl" modifiers) ; group
+             (= "G" key))
+        (surface-group surf)
+
+        (and (= "Ctrl" modifiers) ; duplicate
+             (= "D" key))
+        (surface-duplicate surf)
+
+        (= "E" key)
+        (if (= :edit @mode*)
+          (surface-mode surf :active)
+          (surface-mode surf :edit))
+
+        :else (widget-button surf key))
+
+      (catch Exception e
+        (println "Error: " e)
+        (.printStackTrace e)))))
+
+(defn- surface-center
+  [s]
+  {:x (/ (:width s) 2.0)
+   :y (/ (:height s) 2.0)})
+
+; TODO: finish me
+(comment defn surface-save
+  [s & [path]]
+  (let [path (or path (file-chooser :type :save))]
+    (if path nil)))
+
+(declare surface-clear)
+
+(defn surface-menu
+  [s]
+  (sg/menus
+    [["Overtone"
+      ["Save" #(println "save")]
+      ["Quit" #(sg/visible (:frame s) false)]]
+     ["Edit"
+      ["Undo" #()]
+      ["Redo" #()]
+      ["Cut" #()]
+      ["Copy" #()]
+      ["Paste" #()]
+      ["Duplicate" #(surface-duplicate s)]]
+     ["Surface"
+      ["Clear" #(surface-clear s)]
+      ["Group" #(surface-group s)]
+      ["Ungroup" #(surface-ungroup s)]
+      ["Button" #((:button @widget-fns*) s (keyword (gensym "button")) 1)]
+      ["Fader" #((:fader @widget-fns*) s (keyword (gensym "button")) 0.75)]
+      ["Dial" #(((:dial @widget-fns*) s (keyword (gensym "dial")) 0.5))]]
+     ["View"
+      ["Zoom-in" #(surface-scale s 1.1)]
+      ["Zoom-out" #(surface-scale s 0.9)]]]))
+
+(defn surface
+  [name width height]
+  (let [frame (sg/frame name width height)
+        panel (sg/panel width height)
+        undo-man (sg/undo-manager)
+        surf {:type :surface
+              :name name
+              :width width
+              :height height
+              :widgets* (atom #{})
+              :groups* (atom #{})
+              :undo undo-man}
+        surf  (with-surface-group surf)
+        affine (sg/affine (:group surf))
+        mode* (atom :active)
+        surf (assoc surf
+                    :mode* mode*
+                    :frame frame
+                    :panel panel
+                    :affine affine
+                    :selected #{})
+        surf (setup-surface-mouse surf)]
+
+    (sg/set-scene panel affine)
 
     (sg/on-component frame
       :resize #(sg/set-shape (:background surf)
-                             (sg/rectangle 0 0 
+                             (sg/rectangle 0 0
                                            (.getWidth frame)
                                            (.getHeight frame))))
 
+    (sg/on-key-pressed (:group surf)
+      (fn [{:keys [key modifiers]}]
+        (let [{:keys [mouse-x* mouse-y*]} surf
+              mouse-x @mouse-x*
+              mouse-y @mouse-y*]
+              (println "key: " modifiers key)
+              (println "mouse: " mouse-x "," mouse-y)
+              (surface-key-press surf key modifiers))))
+
     (doto frame
+      (.setJMenuBar (surface-menu surf))
       (.add panel)
       (.pack)
-      (.show))
+      (.setVisible true))
 
     surf))
-
-(def EDIT-PADDING 0)
 
 (defn- next-widget-name [s w]
   (let [widgets (filter #(= (:type w) (:type %)) @(:widgets* s))]
     (str (name (:type w)) "-" (count widgets))))
-
-(def SNAP-DISTANCE 3)
 
 (defn snap-lines [s]
   (let [bounds (map #(.getBounds (:affine %)) @(:widgets* s))
@@ -265,8 +440,31 @@
         y-line (first (filter #(< (Math/abs (- y %)) SNAP-DISTANCE) y-lines))]
     [(or x-line x) (or y-line y)]))
 
+(defn surface-remove-widget
+  "Remove a widget from the surface."
+  [surface widget]
+  (let [{:keys [group widgets]} surface
+        {:keys [translate]} widget]
+    (sg/remove group translate)
+    (swap! widgets disj widget)
+
+    surface))
+
+(defn surface-clear [s]
+  (doseq [w @(:widgets* s)]
+    (surface-remove-widget s w)))
+
 (defn surface-add-widget
-  "Add a control widget to a surface."
+  "Add a widget to the surface.
+
+  The widget can have these optional properties:
+    [name x y scale rotate label]
+
+  For example:
+
+  (surface-add-widget s (assoc (custom-widget)
+    :x 10 :y 60 :label \"z-drag\"))
+  "
   ([surface widget]
    (let [{:keys [name x y scale rotate label]} widget
          y (+ y EDIT-PADDING)
@@ -283,7 +481,8 @@
          widget (assoc widget
                        :affine affine
                        :selected?* (atom false)
-                       :bounding-box bounding-box)]
+                       :bounding-box bounding-box)
+         edit-mode? (= :edit @(:mode* surface))]
 
      (sg/add (:group widget) lbl-tx)
 
@@ -313,8 +512,9 @@
                                    (.getWidth w-bounds)
                                    (.getHeight w-bounds)))
        (sg/mode :fill)
-       (sg/fill-color (color 255 255 255 100))
-       (sg/visible false))
+       (sg/fill-color (color 255 255 255 0))
+       (sg/visible edit-mode?)
+       (sg/block-mouse edit-mode?))
 
      (sg/add (:group widget) bounding-box)
 
@@ -360,29 +560,21 @@
            bounding-drag-handler
            (fn [event]
              (when (= :edit @(:mode* surface))
-               ;(println "\ndrag handler...\n------------------------")
                  (let [cur-x (.getX event)
                        cur-y (.getY event)
                        dx (- cur-x @last-x*)
                        dy (- cur-y @last-y*)
-                 ;      _ (println "odx, ody: " dx dy)
                        bounds (selected-widget-bounds surface)
-                 ;      _ (println "bounds: " bounds)
                        [dx dy] (if bounds
                                  (let [cx (+ dx (.getCenterX bounds))
                                        cy (+ dy (.getCenterY bounds))
-                 ;                      _ (println "center x,y: " cx cy)
                                        [snap-x snap-y] (snap-point-to-widgets surface cx cy)
-                 ;                      _ (println "snap x,y: " snap-x snap-y)
                                        dx (+ dx (- snap-x cx))
                                        dy (+ dy (- snap-y cy))]
                                    [dx dy])
                                  [dx dy])]
-                 ;  (println "dx, dy: " dx dy)
                    (doseq [w (selected-widgets surface)]
-                     (.transformBy (:affine w)
-                                   (AffineTransform/getTranslateInstance (double dx)
-                                                                         (double dy))))
+                     (widget-translate w dx dy))
                    (reset! last-x* (+ @last-x* dx))
                    (reset! last-y* (+ @last-y* dy)))))]
 
@@ -392,36 +584,39 @@
 
      (swap! (:widgets* surface) conj widget)
 
+     (sg/undoable (:undo surface) surface
+                  "remove widget" #(surface-remove-widget surface widget)
+                  "add widget" #(surface-add-widget surface widget))
+
      surface)))
 
-(defn surface-remove-widget [surface widget]
-  (let [{:keys [group widgets]} surface
-        {:keys [translate]} widget]
-    (sg/remove group translate)
-    (swap! widgets disj widget)
-
-    surface))
-
 ;TODO: Turn mul, scale and rotate into observed atoms
-(defn widget-fn
+(defn surface-register-widget
   "Takes a function that should accept an atom and return a scenegraph group representing the
   widget which is configured to update the atom whenever the value is changed."
-  [f]
-  (fn [s name init-val & {:as options}]
-    (let [options (merge {:x 10 :y 10 :scale 1 :mul 1 :rotate 0}
-                         options)
-          {:keys [x y scale mul]} options
-          widget (f options)
-          widget (assoc widget :name name :mul mul :x x :y y :scale scale :rotate 0)]
-      (cond
-        (number? init-val) (reset! (:value widget) (/ init-val (float mul)))
-        (string? init-val) (reset! (:value widget) init-val))
+  [w-name f w-key]
+  (let [w-fn
+        (fn [s name init-val & {:as options}]
+          (let [center (surface-center s)
+                options (merge center
+                               {:scale 1 :mul 1 :rotate 0}
+                               options)
+                widget (f options)
+                {:keys [x y scale mul]} options
+                widget (assoc widget :name name :mul mul :x x :y y :scale scale :rotate 0)]
+            (cond
+              (number? init-val) (reset! (:value widget) (/ init-val (float mul)))
+              (string? init-val) (reset! (:value widget) init-val))
 
-      (surface-add-widget s widget))))
+            (surface-add-widget s widget)
+            widget))]
+    (swap! widget-fns* assoc w-name w-fn)
+    (swap! widget-keys* assoc w-key w-fn)
+    w-fn))
 
 ; Create the (label ...) function here so we can use label-group but not have a circular
 ; dependency with label.clj.
-(def label (widget-fn label-group))
+;(def label (widget-fn :label label-group))
 
 (defn surface-vals [s]
   (into {} (map (fn [w] [(:name w) @(:value w)]) @(:widgets* s))))
@@ -437,8 +632,20 @@
   "Bind a surface to an instrument so any widgets with a name matching an instrument param name
   will send control messages to update the instrument in real-time."
   [surf inst-fn]
-  (for [{:keys [name value mul]} @(:widgets* surf)] 
+  (for [{:keys [name value mul]} @(:widgets* surf)]
       (add-watch value name
                  (fn [_ _ _ new-val]
                    (inst-fn :ctl name (* mul new-val))))))
 
+(defn- widget-form
+  [w]
+  (let [{:keys [type name value x y mul]} w]
+    (list (symbol (clojure.core/name type)) name @value :x x :y y)))
+
+(defn surface-form
+  ""
+  [surf]
+  (let [w-forms (doall (map widget-form @(:widgets* surf)))]
+      (concat
+        (list '-> (list 'surface (:name surf) (:width surf) (:height surf)))
+        w-forms)))
